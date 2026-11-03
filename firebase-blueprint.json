@@ -1,0 +1,174 @@
+{
+  "entities": {
+    "Note": {
+      "title": "Note",
+      "description": "A study note created by a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "level": { "type": "string", "enum": ["beginner", "intermediate", "advanced", "mastered"] },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "title", "content", "categoryId", "userId", "createdAt", "updatedAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A task with a due date and priority.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "noteId": { "type": "string" },
+        "dueDate": { "type": "number" },
+        "priority": { "type": "string", "enum": ["low", "medium", "high"] },
+        "completed": { "type": "boolean" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "folderId": { "type": "string" }
+      },
+      "required": ["id", "title", "priority", "completed", "userId", "createdAt", "updatedAt"]
+    },
+    "TaskFolder": {
+      "title": "TaskFolder",
+      "description": "Folders for organizing a user's tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "userId": { "type": "string" },
+        "color": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "userId", "createdAt"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastLogin": { "type": "number" },
+        "language": { "type": "string" },
+        "profession": { "type": "string" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Classroom": {
+      "title": "Classroom",
+      "description": "A classroom created by a teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "joinCode": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "studentIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "name", "joinCode", "teacherId", "studentIds", "createdAt"]
+    },
+    "ClassroomMessage": {
+      "title": "ClassroomMessage",
+      "description": "A message in a classroom chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "classroomId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "classroomId", "senderId", "senderName", "content", "createdAt"]
+    },
+    "ClassroomHomework": {
+      "title": "ClassroomHomework",
+      "description": "Homework assigned by a teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "classroomId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "dueDate": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "classroomId", "title", "description", "dueDate", "createdAt"]
+    },
+    "HomeworkSubmission": {
+      "title": "HomeworkSubmission",
+      "description": "Homework submitted by a student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "homeworkId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "content": { "type": "string" },
+        "grade": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "homeworkId", "studentId", "content", "createdAt"]
+    },
+    "JoinCode": {
+      "title": "JoinCode",
+      "description": "Map between join code and classroom ID",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "classroomId": { "type": "string" }
+      },
+      "required": ["code", "classroomId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/notes/{noteId}": {
+      "schema": "Note",
+      "description": "User notes collection"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "User tasks collection"
+    },
+    "/users/{userId}/taskFolders/{folderId}": {
+      "schema": "TaskFolder",
+      "description": "User task folders collection"
+    },
+    "/classrooms/{classroomId}": {
+      "schema": "Classroom",
+      "description": "Classrooms for teachers and students"
+    },
+    "/classrooms/{classroomId}/messages/{messageId}": {
+      "schema": "ClassroomMessage",
+      "description": "Messages inside a classroom"
+    },
+    "/classrooms/{classroomId}/homeworks/{homeworkId}": {
+      "schema": "ClassroomHomework",
+      "description": "Homework generated by teacher in a classroom"
+    },
+    "/classrooms/{classroomId}/homeworks/{homeworkId}/submissions/{submissionId}": {
+      "schema": "HomeworkSubmission",
+      "description": "Homework submission by students"
+    },
+    "/joinCodes/{code}": {
+      "schema": "JoinCode",
+      "description": "Public mapping of join codes to classrooms"
+    }
+  }
+}

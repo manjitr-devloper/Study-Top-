@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Study Top — Smart Notes Making Platform</title>
+    <meta name="description" content="Study Top — Created by Manjit Ranjan (Google Developer). AI-powered note-making, source-grounded research, and interactive study platform." />
+    <meta name="author" content="Manjit Ranjan (Google Developer)" />
+    <link rel="icon" type="image/png" href="/assets/aistudio/file_00000000c08481fa98304e6f030e53d7_93183212.png" />
+    <link rel="apple-touch-icon" href="/assets/aistudio/file_00000000c08481fa98304e6f030e53d7_93183212.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" rel="stylesheet">
+    <script>
+      // Suppress Vite HMR WebSocket errors in cloud preview iframe
+      window.addEventListener('error', function(e) {
+        if (e && (
+          (e.message && (e.message.includes('WebSocket') || e.message.includes('websocket') || e.message.includes('@vite/client'))) ||
+          (e.filename && e.filename.includes('@vite/client'))
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e && e.reason && (
+          String(e.reason).includes('WebSocket') ||
+          String(e.reason).includes('websocket') ||
+          String(e.reason).includes('@vite/client')
+        )) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }, true);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

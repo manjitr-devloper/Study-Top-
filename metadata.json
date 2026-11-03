@@ -1,0 +1,8 @@
+{
+  "name": "Study Top",
+  "description": "An AI-powered academic workspace created by Manjit Ranjan (Google Developer) for smart notes, diagrams, virtual classrooms, and interactive Q&A solving.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

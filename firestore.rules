@@ -1,0 +1,263 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Validation Helpers
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) {
+      return isSignedIn() && (
+        request.auth.uid == userId ||
+        request.auth.token.email == 'manjitranjan180513@gmail.com' ||
+        userId == 'super_admin_manjit_ranjan_id' ||
+        isSignedIn()
+      );
+    }
+    function isVerified() { return isSignedIn(); }
+
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.email is string && data.email.size() <= 256 &&
+             data.lastLogin is number;
+    }
+
+    function isValidNote(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'categoryId', 'userId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() >= 7 && data.keys().size() <= 9 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 256 &&
+             data.content is string && data.content.size() <= 1048576 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is number &&
+             data.updatedAt is number &&
+             (!('level' in data) || (data.level in ['beginner', 'intermediate', 'advanced', 'mastered'])) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 20));
+    }
+
+    function isValidTask(data) {
+      return data.keys().hasAll(['id', 'title', 'priority', 'completed', 'userId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() >= 7 && data.keys().size() <= 13 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 256 &&
+             data.priority in ['low', 'medium', 'high'] &&
+             data.completed is bool &&
+             data.userId == request.auth.uid &&
+             data.createdAt is number &&
+             data.updatedAt is number &&
+             (!('dueDate' in data) || (data.dueDate is number)) &&
+             (!('noteId' in data) || (data.noteId is string)) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 5000)) &&
+             (!('location' in data) || (data.location is string && data.location.size() <= 1024)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 20)) &&
+             (!('folderId' in data) || (data.folderId is string));
+    }
+
+    function isValidTaskFolder(data) {
+      return data.keys().hasAll(['id', 'name', 'userId', 'createdAt']) &&
+             data.keys().size() >= 4 && data.keys().size() <= 5 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 64 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is number &&
+             (!('color' in data) || (data.color is string));
+    }
+
+    function isValidClassroom(data) {
+      return data.keys().hasAll(['id', 'name', 'joinCode', 'teacherId', 'studentIds', 'createdAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() <= 128 &&
+             data.joinCode is string && data.joinCode.size() == 6 &&
+             data.teacherId is string && data.teacherId == request.auth.uid &&
+             data.studentIds is list && data.studentIds.size() <= 200 &&
+             data.createdAt is number;
+    }
+
+    function isValidQuizResult(data) {
+      return data.keys().hasAll(['id', 'categoryId', 'score', 'total', 'userId', 'createdAt']) &&
+             data.keys().size() >= 6 && data.keys().size() <= 7 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.categoryId is string && data.categoryId.size() <= 128 &&
+             data.score is number && data.score >= 0 &&
+             data.total is number && data.total > 0 &&
+             data.userId == request.auth.uid &&
+             data.createdAt is number;
+    }
+
+    function isValidGlobalMessage(data) {
+      return data.keys().hasAll(['id', 'content', 'senderId', 'senderName', 'createdAt']) &&
+             data.keys().size() >= 5 && data.keys().size() <= 6 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.content is string && data.content.size() <= 2000 &&
+             data.senderId == request.auth.uid &&
+             data.senderName is string && data.senderName.size() <= 100 &&
+             data.createdAt is number;
+    }
+
+    function isValidAiChat(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() <= 256 &&
+             data.createdAt is number &&
+             data.updatedAt is number &&
+             (!('mode' in data) || data.mode is string) &&
+             (!('messages' in data) || (data.messages is list && data.messages.size() <= 150));
+    }
+
+    // Global Chat
+    match /globalChat/{messageId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update: if false; // Immutable
+      allow delete: if isSignedIn() && (resource.data.senderId == request.auth.uid || isOwner(resource.data.senderId));
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow get: if true; // Allow reading profile information
+      allow list: if isOwner(userId) || isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      
+      // User notes subcollection
+      match /notes/{noteId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(noteId) && isValidNote(request.resource.data) && 
+                        request.resource.data.createdAt <= request.time.toMillis();
+        allow update: if isOwner(userId) && isValidNote(request.resource.data) &&
+                      request.resource.data.updatedAt <= request.time.toMillis() &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.userId == resource.data.userId &&
+                      (
+                        request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'content', 'categoryId', 'updatedAt', 'level', 'tags'])
+                      );
+        allow delete: if isOwner(userId);
+      }
+
+      // User tasks subcollection
+      match /tasks/{taskId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(taskId) && isValidTask(request.resource.data);
+        allow update: if isOwner(userId) && isValidTask(request.resource.data) &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasAny(['title', 'description', 'priority', 'completed', 'dueDate', 'updatedAt', 'tags', 'folderId']);
+        allow delete: if isOwner(userId);
+      }
+
+      // User quiz results
+      match /quizResults/{quizId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(quizId) && isValidQuizResult(request.resource.data);
+        allow update: if isOwner(userId) && isValidQuizResult(request.resource.data) &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.userId == resource.data.userId;
+        allow delete: if isOwner(userId);
+      }
+
+      // User task folders subcollection
+      match /taskFolders/{folderId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(folderId) && isValidTaskFolder(request.resource.data);
+        allow update: if isOwner(userId) && isValidTaskFolder(request.resource.data) &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'color']);
+        allow delete: if isOwner(userId);
+      }
+
+      // User AI Voice & Chat conversations storage
+      match /aiChats/{chatId} {
+        allow list: if isOwner(userId) || request.auth.token.email == 'manjitranjan180513@gmail.com';
+        allow get: if isOwner(userId) || request.auth.token.email == 'manjitranjan180513@gmail.com';
+        allow create: if isOwner(userId) && isValidId(chatId) && isValidAiChat(request.resource.data);
+        allow update: if isOwner(userId) && isValidAiChat(request.resource.data) &&
+                      request.resource.data.id == resource.data.id &&
+                      request.resource.data.userId == resource.data.userId;
+        allow delete: if isOwner(userId) || request.auth.token.email == 'manjitranjan180513@gmail.com';
+      }
+
+      // User Saved Multi-Subject & Math Solutions
+      match /savedSolutions/{solutionId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // User Chronological Learning History
+      match /learningHistory/{historyId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // User Notebooks and Folders
+      match /notebooks/{notebookId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // User Flashcards & Study Decks
+      match /flashcards/{cardId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // User Practice Tests & Assessments
+      match /practiceTests/{testId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // User Uploaded Document References
+      match /documents/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    match /joinCodes/{code} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn();
+      allow delete: if isSignedIn() && get(/databases/$(database)/documents/classrooms/$(resource.data.classroomId)).data.teacherId == request.auth.uid;
+    }
+
+    match /classrooms/{classroomId} {
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidClassroom(request.resource.data);
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+
+      match /messages/{messageId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /homeworks/{homeworkId} {
+        allow read, write: if isSignedIn();
+        
+        match /submissions/{submissionId} {
+          allow read, write: if isSignedIn();
+        }
+      }
+    }
+
+    // User Subscriptions
+    match /userSubscriptions/{userId} {
+      allow read, write: if true;
+    }
+
+    // System Announcements (Read: signed-in, Write: Super Admin Manjit Ranjan)
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.token.email == 'manjitranjan180513@gmail.com';
+    }
+
+    // System Activity & Audit Logs
+    match /activityLogs/{logId} {
+      allow read: if isSignedIn() && (request.auth.token.email == 'manjitranjan180513@gmail.com' || resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && request.auth.token.email == 'manjitranjan180513@gmail.com';
+    }
+  }
+}

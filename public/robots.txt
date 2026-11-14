@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Allow: /google259a26701354402f.html
+Allow: /available.json
+
+Sitemap: https://tinyurl.com/studytop2026/sitemap.xml
+Sitemap: https://ais-pre-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app/sitemap.xml

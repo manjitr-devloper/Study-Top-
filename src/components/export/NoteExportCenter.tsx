@@ -33,7 +33,7 @@ export const NoteExportCenter: React.FC<NoteExportCenterProps> = ({
   language = 'English'
 }) => {
   const { isStudentPlus, isPro, planId } = useSubscription();
-  const [activeTab, setActiveTab] = useState<'preview' | 'pdf' | 'png' | 'txt'>('preview');
+  const [activeTab, setActiveTab] = useState<'preview' | 'pdf' | 'png' | 'txt' | 'json'>('preview');
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -154,6 +154,43 @@ export const NoteExportCenter: React.FC<NoteExportCenterProps> = ({
     setTimeout(() => setExportSuccess(null), 4000);
   };
 
+  // Generate Standardized available.json Academic Study Pack
+  const handleExportAvailableJson = () => {
+    const pack = {
+      app: 'Study Top 2.0',
+      pack_name: 'available.json',
+      version: '2.0.0',
+      format: 'study_top_available_pack',
+      author: 'Study Top (Manjit Ranjan)',
+      live_url: 'https://tinyurl.com/studytop2026',
+      generated_at: Date.now(),
+      note: {
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        categoryId: note.categoryId,
+        tags: note.tags || [],
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        level: note.level || 'intermediate',
+        structuredData: note.structuredData || null
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'available.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportSuccess('available.json study pack downloaded successfully!');
+    setTimeout(() => setExportSuccess(null), 4000);
+  };
+
   // Browser Print
   const handlePrint = () => {
     window.print();
@@ -216,6 +253,14 @@ export const NoteExportCenter: React.FC<NoteExportCenterProps> = ({
             >
               Plain Text (TXT)
             </button>
+            <button
+              onClick={() => setActiveTab('json')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'json' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              available.json Pack
+            </button>
           </div>
 
           {/* Quick Action Button for current tab */}
@@ -235,13 +280,14 @@ export const NoteExportCenter: React.FC<NoteExportCenterProps> = ({
                 if (activeTab === 'pdf' || activeTab === 'preview') handleExportPDF();
                 else if (activeTab === 'png') handleExportPNG();
                 else if (activeTab === 'txt') handleExportTXT();
+                else if (activeTab === 'json') handleExportAvailableJson();
               }}
               disabled={isExporting}
               className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
             >
               <Download className="w-3.5 h-3.5" />
               <span>
-                {isExporting ? 'Generating...' : `Download ${activeTab.toUpperCase()}`}
+                {isExporting ? 'Generating...' : activeTab === 'json' ? 'Download available.json' : `Download ${activeTab.toUpperCase()}`}
               </span>
             </button>
           </div>

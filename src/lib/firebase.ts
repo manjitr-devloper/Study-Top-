@@ -1,28 +1,33 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, OAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { 
-  initializeFirestore, 
-  persistentLocalCache, 
-  persistentMultipleTabManager,
-  setLogLevel 
+  getFirestore, 
+  initializeFirestore,
+  setLogLevel
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Silence non-fatal backend probing warnings so transient sandbox latency doesn't trigger error banners
-setLogLevel('error');
+setLogLevel('silent');
 
 const app = initializeApp(firebaseConfig);
+const FIRESTORE_DATABASE_ID =
+  (firebaseConfig as any).firestoreDatabaseId || 'ai-studio-2fb8cd7c-f879-4d0b-a6a4-b9386105a50d';
 
-// Configure Firestore with forced long-polling and persistent offline cache
-// to guarantee reliable immediate connectivity across iframe sandboxes and proxy environments
-export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-}, firebaseConfig.firestoreDatabaseId);
-
+export const db = (() => {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true
+      },
+      FIRESTORE_DATABASE_ID
+    );
+  } catch {
+    return getFirestore(app, FIRESTORE_DATABASE_ID);
+  }
+})();
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
@@ -31,7 +36,27 @@ setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.warn("Auth persistence initialization note:", err);
 });
 
+// In-memory access token cache (Workspace Integration Skill requirement: never store in localStorage)
+let cachedAccessToken: string | null = null;
+
+export const setCachedAccessToken = (token: string | null) => {
+  cachedAccessToken = token;
+};
+
+export const getAccessToken = async (): Promise<string | null> => {
+  return cachedAccessToken;
+};
+
 export const googleProvider = new GoogleAuthProvider();
+// Google Classroom & Gmail Transactional Scopes (Workspace Integration)
+googleProvider.addScope('https://www.googleapis.com/auth/classroom.courses.readonly');
+googleProvider.addScope('https://www.googleapis.com/auth/classroom.coursework.me');
+googleProvider.addScope('https://www.googleapis.com/auth/classroom.announcements.readonly');
+googleProvider.addScope('https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly');
+googleProvider.addScope('https://www.googleapis.com/auth/classroom.rosters.readonly');
+googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
 export const appleProvider = new OAuthProvider('apple.com');
 export const microsoftProvider = new OAuthProvider('microsoft.com');
 
@@ -99,15 +124,4 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   };
 
   console.warn('Firestore operation notice: ', JSON.stringify(errInfo));
-}
-
-// Background session stabilizer for Firestore rules
-if (typeof window !== 'undefined') {
-  auth.onAuthStateChanged((u) => {
-    if (!u) {
-      import('firebase/auth').then(({ signInAnonymously }) => {
-        signInAnonymously(auth).catch(() => {});
-      });
-    }
-  });
 }

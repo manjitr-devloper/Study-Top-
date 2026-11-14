@@ -1,0 +1,59 @@
+{
+  "app": "Study Top 2.0",
+  "pack_name": "available.json",
+  "version": "2.0.0",
+  "format": "study_top_available_pack",
+  "schema_version": "2.0",
+  "author": "Manjit Ranjan (Google Developer)",
+  "live_url": "https://tinyurl.com/studytop2026",
+  "generated_at": 1731384000000,
+  "description": "Official Study Top 2.0 Academic Study Pack with structured notes, flashcards, formula sheets, key concepts, and exam questions.",
+  "features": [
+    "Mind 2.0 Intelligent Notes Engine",
+    "Sub-5s Ultra Fast Notes Processing",
+    "Google Workspace & Services Hub (Classroom, Calendar, Meet, Docs)",
+    "3D Interactive Flashcards",
+    "Zero-Hallucination Source Grounding",
+    "Offline PWA Support"
+  ],
+  "sample_study_pack": {
+    "title": "Quantum Mechanics & Wave-Particle Duality",
+    "subject": "Physics",
+    "education_level": "Undergraduate / Advanced Secondary",
+    "summary": "Core principles of quantum mechanics including de Broglie wavelength, Heisenberg uncertainty principle, and Schrödinger wave equation.",
+    "key_takeaways": [
+      "Light and matter exhibit both wave-like and particle-like characteristics depending on the experimental setup.",
+      "de Broglie relation: \\lambda = \\frac{h}{p} = \\frac{h}{mv}.",
+      "Heisenberg uncertainty principle: \\Delta x \\cdot \\Delta p \\ge \\frac{\\hbar}{2}."
+    ],
+    "formulas": [
+      {
+        "name": "de Broglie Wavelength",
+        "latex": "\\lambda = \\frac{h}{p}",
+        "description": "Relates wavelength lambda to particle momentum p using Planck constant h."
+      },
+      {
+        "name": "Heisenberg Uncertainty Principle",
+        "latex": "\\Delta x \\cdot \\Delta p_x \\ge \\frac{\\hbar}{2}",
+        "description": "Fundamental limit on the precision of position and momentum measurements."
+      }
+    ],
+    "flashcards": [
+      {
+        "front": "What is the de Broglie hypothesis?",
+        "back": "All matter exhibits wave-like behavior with a wavelength inversely proportional to its momentum: lambda = h / p."
+      },
+      {
+        "front": "State the Heisenberg Uncertainty Principle.",
+        "back": "It is impossible to simultaneously measure the exact position and momentum of a subatomic particle with arbitrary precision: Delta x * Delta p >= hbar / 2."
+      }
+    ],
+    "practice_questions": [
+      {
+        "question": "Calculate the de Broglie wavelength of an electron moving at 1.0 x 10^6 m/s.",
+        "type": "numerical",
+        "answer": "lambda = 7.27 x 10^-10 m (0.727 nm)"
+      }
+    ]
+  }
+}

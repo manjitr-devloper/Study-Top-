@@ -1,0 +1,122 @@
+{
+  "updatedAt": 1794570571763,
+  "globalConfig": {
+    "ownerEmail": "manjitranjan180513@gmail.com",
+    "welcomeEmailEnabled": true,
+    "loginAlertEnabled": true,
+    "logoutEmailEnabled": true,
+    "securityAlertEnabled": true,
+    "emailVerificationEnabled": true,
+    "maxRetries": 3,
+    "rateLimitPerMinutePerUser": 6,
+    "updatedAt": 1794570552414
+  },
+  "sentWelcomeAccounts": [
+    "manjitranjan180513@gmail.com",
+    "USR-ADMIN-MANJIT-01"
+  ],
+  "notifications": [
+    {
+      "id": "emn_1794570571762_9959c5b1",
+      "user_id": "USR-ADMIN-MANJIT-01",
+      "recipient_email": "manjitranjan180513@gmail.com",
+      "recipient_name": "Manjit Ranjan",
+      "email_type": "logout_alert",
+      "subject": "You Have Logged Out — Study Top",
+      "delivery_status": "pending_provider_config",
+      "provider_message_id": null,
+      "provider_name": "Unconfigured Provider (Queue Active)",
+      "created_at": 1794570571762,
+      "sent_at": null,
+      "error_code": "PROVIDER_CREDENTIALS_NOT_CONFIGURED",
+      "error_message": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "retry_count": 0,
+      "next_retry_at": null,
+      "idempotency_key": "logout:manjitranjan180513@gmail.com:29909509",
+      "html_preview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>You Have Logged Out — Study Top</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 24px 12px; -webkit-font-smoothing: antialiased;\">\n  <div style=\"max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);\">\n    <!-- Top Brand Header -->\n    <div style=\"background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4f46e5 100%); padding: 32px 28px; text-align: center; color: #ffffff;\">\n      <div style=\"display: inline-block; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;\">\n        SESSION ENDED SAFELY\n      </div>\n      <h1 style=\"margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;\">STUDY TOP</h1>\n      <p style=\"margin: 6px 0 0; font-size: 12px; color: #dbeafe; font-weight: 600;\">\n        AI-Powered Academic Learning &amp; Smart Notes Ecosystem\n      </p>\n    </div>\n\n    <!-- Main Body -->\n    <div style=\"padding: 32px 28px; font-size: 14px; line-height: 1.65; color: #334155;\">\n      \n      <h2 style=\"font-size: 19px; color: #0f172a; margin-top: 0; font-weight: 900;\">\n        You Have Logged Out of Study Top\n      </h2>\n      <p>\n        Hello <strong>Manjit Ranjan</strong>, this is a confirmation that your current Study Top session has ended safely.\n      </p>\n\n      <div style=\"background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 13px;\">\n        <strong>User Name:</strong> Manjit Ranjan<br/>\n        <strong>Logout Date &amp; Time:</strong> Friday, November 13, 2026 at 11:49:31 AM UTC (UTC)<br/>\n        <strong>Session Status:</strong> <span style=\"color: #059669; font-weight: 800;\">Signed Out &amp; Cleared</span>\n      </div>\n\n      <div style=\"background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 14px 16px; font-size: 12px; color: #1e40af;\">\n        <strong>Security Reminder:</strong> If you were studying on a shared, school, or public computer, please close all browser tabs to ensure your personal data remains private.\n      </div>\n    \n      \n      <div style=\"text-align: center; margin: 28px 0;\">\n        <a href=\"https://ais-dev-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app\" style=\"display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff !important; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 14px; letter-spacing: 0.2px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);\">\n          Sign In Again to Study Top &rarr;\n        </a>\n      </div>\n      <div style=\"margin-top: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9;\">\n        <p style=\"margin: 0; font-size: 13px; color: #475569;\">Warm regards,</p>\n        <p style=\"margin: 4px 0 0; font-size: 14px; font-weight: 800; color: #0f172a;\">Study Top Team</p>\n        <p style=\"margin: 2px 0 0; font-size: 12px; color: #2563eb; font-weight: 600;\">Official Sender: manjitranjan180513@gmail.com</p>\n      </div>\n    </div>\n\n    <!-- Footer -->\n    <div style=\"background: #f8fafc; padding: 22px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;\">\n      <p style=\"margin: 0; font-weight: 800; color: #0f172a; font-size: 12px;\">Created by Manjit Ranjan</p>\n      <p style=\"margin: 4px 0 0;\">Official Owner Email: <a href=\"mailto:manjitranjan180513@gmail.com\" style=\"color: #2563eb; text-decoration: none; font-weight: 700;\">manjitranjan180513@gmail.com</a></p>\n      <p style=\"margin: 8px 0 0;\">You received this transactional notification regarding your Study Top account security and activity.</p>\n      <p style=\"margin: 8px 0 0; font-size: 10px; color: #94a3b8;\">&copy; 2026 Study Top. All rights reserved.</p>\n    </div>\n  </div>\n</body>\n</html>",
+      "text_preview": "STUDY TOP — You Have Logged Out — Study Top\n\nHello Manjit Ranjan,\nYour current Study Top session has ended safely.\n- User Name: Manjit Ranjan\n- Logout Date & Time: Friday, November 13, 2026 at 11:49:31 AM UTC (UTC)\n\nSecurity Reminder: Always remember to sign out and close browser windows when using shared or public devices.\n\nStudy Top Team\nCreated by Manjit Ranjan (manjitranjan180513@gmail.com)"
+    },
+    {
+      "id": "emn_1794570571722_608984e2",
+      "user_id": "USR-ADMIN-MANJIT-01",
+      "recipient_email": "manjitranjan180513@gmail.com",
+      "recipient_name": "Manjit Ranjan",
+      "email_type": "login_alert",
+      "subject": "New Login Detected — Study Top",
+      "delivery_status": "pending_provider_config",
+      "provider_message_id": null,
+      "provider_name": "Unconfigured Provider (Queue Active)",
+      "created_at": 1794570571722,
+      "sent_at": null,
+      "error_code": "PROVIDER_CREDENTIALS_NOT_CONFIGURED",
+      "error_message": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "retry_count": 0,
+      "next_retry_at": null,
+      "idempotency_key": "login:manjitranjan180513@gmail.com:29909509",
+      "html_preview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>New Login Detected — Study Top</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 24px 12px; -webkit-font-smoothing: antialiased;\">\n  <div style=\"max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);\">\n    <!-- Top Brand Header -->\n    <div style=\"background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4f46e5 100%); padding: 32px 28px; text-align: center; color: #ffffff;\">\n      <div style=\"display: inline-block; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;\">\n        SECURITY LOGIN ALERT\n      </div>\n      <h1 style=\"margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;\">STUDY TOP</h1>\n      <p style=\"margin: 6px 0 0; font-size: 12px; color: #dbeafe; font-weight: 600;\">\n        AI-Powered Academic Learning &amp; Smart Notes Ecosystem\n      </p>\n    </div>\n\n    <!-- Main Body -->\n    <div style=\"padding: 32px 28px; font-size: 14px; line-height: 1.65; color: #334155;\">\n      \n      <h2 style=\"font-size: 19px; color: #0f172a; margin-top: 0; font-weight: 900;\">\n        New Sign-In to Your Study Top Account\n      </h2>\n      <p>\n        Hello <strong>Manjit Ranjan</strong>, we detected a successful login to your Study Top account.\n      </p>\n\n      <table style=\"width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; background: #f8fafc; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;\">\n        <tbody>\n          <tr>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569; width: 38%;\">Registered Name</td>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 700;\">Manjit Ranjan</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569;\">Registered Email</td>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #2563eb; font-family: monospace;\">manjitranjan180513@gmail.com</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569;\">Login Date &amp; Time</td>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;\">Friday, November 13, 2026 at 11:49:31 AM UTC</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569;\">Time Zone</td>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;\">UTC</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-weight: 700; color: #475569;\">Login Method</td>\n            <td style=\"padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 700;\">Google Authentication</td>\n          </tr>\n          <tr>\n            <td style=\"padding: 10px 14px;  font-weight: 700; color: #475569;\">Device / Browser</td>\n            <td style=\"padding: 10px 14px;  color: #475569; font-size: 12px;\">curl/7.88.1</td>\n          </tr>\n          \n        </tbody>\n      </table>\n\n      <div style=\"background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 14px 16px; font-size: 12px; color: #92400e;\">\n        <strong>Security Advisory:</strong> If you recognize this sign-in, no action is needed. If you do not recognize this login activity, please reset your password immediately and review your active sessions in Study Top Account Settings.\n      </div>\n    \n      \n      <div style=\"text-align: center; margin: 28px 0;\">\n        <a href=\"https://ais-dev-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app\" style=\"display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff !important; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 14px; letter-spacing: 0.2px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);\">\n          Review Account Security &rarr;\n        </a>\n      </div>\n      <div style=\"margin-top: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9;\">\n        <p style=\"margin: 0; font-size: 13px; color: #475569;\">Warm regards,</p>\n        <p style=\"margin: 4px 0 0; font-size: 14px; font-weight: 800; color: #0f172a;\">Study Top Team</p>\n        <p style=\"margin: 2px 0 0; font-size: 12px; color: #2563eb; font-weight: 600;\">Official Sender: manjitranjan180513@gmail.com</p>\n      </div>\n    </div>\n\n    <!-- Footer -->\n    <div style=\"background: #f8fafc; padding: 22px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;\">\n      <p style=\"margin: 0; font-weight: 800; color: #0f172a; font-size: 12px;\">Created by Manjit Ranjan</p>\n      <p style=\"margin: 4px 0 0;\">Official Owner Email: <a href=\"mailto:manjitranjan180513@gmail.com\" style=\"color: #2563eb; text-decoration: none; font-weight: 700;\">manjitranjan180513@gmail.com</a></p>\n      <p style=\"margin: 8px 0 0;\">You received this transactional notification regarding your Study Top account security and activity.</p>\n      <p style=\"margin: 8px 0 0; font-size: 10px; color: #94a3b8;\">&copy; 2026 Study Top. All rights reserved.</p>\n    </div>\n  </div>\n</body>\n</html>",
+      "text_preview": "STUDY TOP — New Login Detected — Study Top\n\nHello Manjit Ranjan,\nA new login was detected on your Study Top account:\n- Registered Name: Manjit Ranjan\n- Registered Email: manjitranjan180513@gmail.com\n- Login Date & Time: Friday, November 13, 2026 at 11:49:31 AM UTC\n- Time Zone: UTC\n- Login Method: Google Authentication\n- Device / Browser: curl/7.88.1\n\nSecurity Advisory: If you do not recognize this login, please secure your account and reset your password immediately at https://ais-dev-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app.\n\nStudy Top Team\nCreated by Manjit Ranjan (manjitranjan180513@gmail.com)"
+    },
+    {
+      "id": "emn_1794570571647_5ffc1db1",
+      "user_id": "USR-ADMIN-MANJIT-01",
+      "recipient_email": "manjitranjan180513@gmail.com",
+      "recipient_name": "Manjit Ranjan",
+      "email_type": "welcome",
+      "subject": "Welcome to Study Top — Your Learning Journey Starts Here!",
+      "delivery_status": "pending_provider_config",
+      "provider_message_id": null,
+      "provider_name": "Unconfigured Provider (Queue Active)",
+      "created_at": 1794570571647,
+      "sent_at": null,
+      "error_code": "PROVIDER_CREDENTIALS_NOT_CONFIGURED",
+      "error_message": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "retry_count": 0,
+      "next_retry_at": null,
+      "idempotency_key": "welcome:manjitranjan180513@gmail.com",
+      "html_preview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>Welcome to Study Top — Your Learning Journey Starts Here!</title>\n</head>\n<body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 24px 12px; -webkit-font-smoothing: antialiased;\">\n  <div style=\"max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.06);\">\n    <!-- Top Brand Header -->\n    <div style=\"background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #4f46e5 100%); padding: 32px 28px; text-align: center; color: #ffffff;\">\n      <div style=\"display: inline-block; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;\">\n        WELCOME TO STUDY TOP\n      </div>\n      <h1 style=\"margin: 0; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; color: #ffffff;\">STUDY TOP</h1>\n      <p style=\"margin: 6px 0 0; font-size: 12px; color: #dbeafe; font-weight: 600;\">\n        AI-Powered Academic Learning &amp; Smart Notes Ecosystem\n      </p>\n    </div>\n\n    <!-- Main Body -->\n    <div style=\"padding: 32px 28px; font-size: 14px; line-height: 1.65; color: #334155;\">\n      \n      <h2 style=\"font-size: 20px; color: #0f172a; margin-top: 0; font-weight: 900;\">\n        Welcome to Study Top, Manjit Ranjan! 🎓\n      </h2>\n      <p>\n        Congratulations on creating your official <strong>Study Top</strong> account! Your personalized AI academic learning ecosystem is now active and ready.\n      </p>\n\n      <div style=\"background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 14px; padding: 16px 20px; margin: 20px 0;\">\n        <div style=\"font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: #1d4ed8; font-weight: 800;\">\n          Your Official Student Identity\n        </div>\n        <div style=\"margin-top: 8px; font-size: 14px; color: #0f172a;\">\n          <strong>Registered Name:</strong> Manjit Ranjan<br/>\n          <strong>Unique Username:</strong> <span style=\"font-family: monospace; color: #2563eb; font-weight: 800;\">@manjit_ranjan</span><br/>\n          <strong>Public Profile:</strong> <span style=\"font-family: monospace; color: #475569;\">studytop.app/@manjit_ranjan</span>\n        </div>\n      </div>\n\n      <p style=\"font-weight: 800; color: #0f172a; margin-bottom: 8px;\">Explore Your Study Top Features:</p>\n      <ul style=\"padding-left: 20px; margin-top: 0; line-height: 1.8; color: #334155;\">\n        <li><strong>AI Point-Wise Notes Maker:</strong> Transform PDFs, textbook photos, documents, and YouTube lectures into structured chapter notes.</li>\n        <li><strong>Universal AI Solver:</strong> Step-by-step verified solutions across Mathematics, Physics, Chemistry, Biology, and 23 academic subjects.</li>\n        <li><strong>Smart Flashcards &amp; Practice Quizzes:</strong> Auto-generate active recall decks and exam mock tests.</li>\n        <li><strong>Global Leaderboard &amp; Achievements:</strong> Earn verified learning points, maintain your daily study streak, and unlock scholar badges.</li>\n      </ul>\n    \n      \n      <div style=\"text-align: center; margin: 28px 0;\">\n        <a href=\"https://ais-dev-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app\" style=\"display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff !important; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: 800; font-size: 14px; letter-spacing: 0.2px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);\">\n          Open Your Study Top Workspace &rarr;\n        </a>\n      </div>\n      <div style=\"margin-top: 28px; padding-top: 20px; border-top: 1px solid #f1f5f9;\">\n        <p style=\"margin: 0; font-size: 13px; color: #475569;\">Warm regards,</p>\n        <p style=\"margin: 4px 0 0; font-size: 14px; font-weight: 800; color: #0f172a;\">Study Top Team</p>\n        <p style=\"margin: 2px 0 0; font-size: 12px; color: #2563eb; font-weight: 600;\">Official Sender: manjitranjan180513@gmail.com</p>\n      </div>\n    </div>\n\n    <!-- Footer -->\n    <div style=\"background: #f8fafc; padding: 22px 28px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;\">\n      <p style=\"margin: 0; font-weight: 800; color: #0f172a; font-size: 12px;\">Created by Manjit Ranjan</p>\n      <p style=\"margin: 4px 0 0;\">Official Owner Email: <a href=\"mailto:manjitranjan180513@gmail.com\" style=\"color: #2563eb; text-decoration: none; font-weight: 700;\">manjitranjan180513@gmail.com</a></p>\n      <p style=\"margin: 8px 0 0;\">Created by Manjit Ranjan • Sent once upon initial Study Top account creation.</p>\n      <p style=\"margin: 8px 0 0; font-size: 10px; color: #94a3b8;\">&copy; 2026 Study Top. All rights reserved.</p>\n    </div>\n  </div>\n</body>\n</html>",
+      "text_preview": "STUDY TOP — Welcome to Study Top — Your Learning Journey Starts Here!\n\nHello Manjit Ranjan,\nWelcome to Study Top! Your permanent learning account has been created.\n\nRegistered Name: Manjit Ranjan\nUnique Username: @manjit_ranjan\nPublic Profile: studytop.app/@manjit_ranjan\n\nKey Study Top Features:\n- AI Point-Wise Notes Maker (PDFs, images, textbooks, YouTube)\n- Universal AI Solver (Step-by-step math & science solutions)\n- Smart Flashcards & Practice Quizzes\n- Global Leaderboard & Scholar Achievements\n\nLaunch Study Top: https://ais-dev-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app\n\nStudy Top Team\nCreated by Manjit Ranjan (manjitranjan180513@gmail.com)"
+    }
+  ],
+  "preferences": [
+    {
+      "user_id": "USR-ADMIN-MANJIT-01",
+      "welcome_email_enabled": true,
+      "login_alert_enabled": true,
+      "logout_email_enabled": true,
+      "security_alert_enabled": true,
+      "updated_at": 1794570571647
+    }
+  ],
+  "deliveryLogs": [
+    {
+      "id": "edl_1794570571763_fa36d6",
+      "notification_id": "emn_1794570571762_9959c5b1",
+      "provider": "Unconfigured Provider (Queue Active)",
+      "status": "pending_provider_config",
+      "retry_count": 0,
+      "last_error": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "provider_response": null,
+      "created_at": 1794570571763
+    },
+    {
+      "id": "edl_1794570571727_ee7203",
+      "notification_id": "emn_1794570571722_608984e2",
+      "provider": "Unconfigured Provider (Queue Active)",
+      "status": "pending_provider_config",
+      "retry_count": 0,
+      "last_error": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "provider_response": null,
+      "created_at": 1794570571727
+    },
+    {
+      "id": "edl_1794570571726_e1edad",
+      "notification_id": "emn_1794570571647_5ffc1db1",
+      "provider": "Unconfigured Provider (Queue Active)",
+      "status": "pending_provider_config",
+      "retry_count": 0,
+      "last_error": "Set GMAIL_APP_PASSWORD (16-character Google App Password for manjitranjan180513@gmail.com) in server environment variables to enable live inbox delivery. Queued emails are preserved and can be retried from Admin Email Management.",
+      "provider_response": null,
+      "created_at": 1794570571726
+    }
+  ]
+}

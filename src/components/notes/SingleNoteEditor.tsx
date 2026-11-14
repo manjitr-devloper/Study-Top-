@@ -31,7 +31,9 @@ import {
   X,
   RotateCw,
   CheckCircle,
-  Zap
+  Zap,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -391,19 +393,24 @@ export const SingleNoteEditor: React.FC<SingleNoteEditorProps> = ({
             <span className="hidden md:inline">Make Flashcard</span>
           </button>
 
-          {/* Cloud Save Indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium px-2 py-1 rounded-lg bg-slate-50 border border-slate-200">
+          {/* Cloud Save & Offline Status Indicator */}
+          <div className="hidden sm:flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200">
             {saveStatus === 'saving' ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                <span>Saving...</span>
+                <span className="text-blue-700">Syncing...</span>
+              </>
+            ) : typeof navigator !== 'undefined' && !navigator.onLine ? (
+              <>
+                <CloudOff className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-amber-800">Cached Locally (Offline)</span>
               </>
             ) : saveStatus === 'error' ? (
               <span className="text-rose-600">Save failed</span>
             ) : (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Saved in Cloud</span>
+                <span className="text-emerald-850">Synced to Firebase</span>
               </>
             )}
           </div>

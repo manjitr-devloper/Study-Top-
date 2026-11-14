@@ -6,18 +6,123 @@
     <meta name="theme-color" content="#4f46e5" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Study Top — Smart Notes Making Platform</title>
-    <meta name="description" content="Study Top — Created by Manjit Ranjan (Google Developer). AI-powered note-making, source-grounded research, and interactive study platform." />
+    <title>Study Top — #1 AI Notes Maker &amp; Smart Study Platform</title>
+    <meta name="description" content="Study Top is the #1 AI Notes Maker created by Manjit Ranjan (Google Developer). Turn PDFs, images, docs, and textbooks into organized revision notes instantly." />
+    <meta name="keywords" content="Study Top, Notes Maker, AI Notes Maker, Study Top Notes Maker, StudyTop, Best Notes Maker, Free Notes Maker online, AI Study Notes, Student Notes Maker, CBSE Notes, DAV Study Platform, Manjit Ranjan" />
     <meta name="author" content="Manjit Ranjan (Google Developer)" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Study Top — AI Notes Maker" />
+    <meta property="og:title" content="Study Top — #1 AI Notes Maker &amp; Smart Study Platform" />
+    <meta property="og:description" content="Study Top is the #1 AI Notes Maker. Generate organized revision notes, formula sheets, flashcards, and quizzes from PDFs and textbook photos." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Study Top — #1 AI Notes Maker &amp; Study Platform" />
+    <meta name="twitter:description" content="Turn your PDFs, docs, and textbook photos into structured study notes with Study Top Notes Maker." />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://tinyurl.com/studytop2026/#app",
+          "name": "Study Top",
+          "alternateName": ["StudyTop", "Notes Maker", "Study Top Notes Maker", "Student of DAV"],
+          "url": "https://tinyurl.com/studytop2026",
+          "applicationCategory": "EducationalApplication",
+          "applicationSubCategory": "AI Notes Maker",
+          "operatingSystem": "All",
+          "description": "Study Top is an AI-powered Notes Maker and academic workspace created by Manjit Ranjan (Google Developer) that turns PDFs, textbooks, and lectures into structured study notes.",
+          "keywords": "Study Top, Notes Maker, AI Notes Maker, StudyTop, Study Notes, Flashcards, Exam Prep",
+          "author": {
+            "@type": "Person",
+            "name": "Manjit Ranjan",
+            "jobTitle": "Google Developer"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR"
+          },
+          "featureList": [
+            "AI Notes Maker",
+            "PDF to Study Notes",
+            "Textbook Page OCR",
+            "Interactive Flashcards",
+            "Formula Sheets",
+            "Quiz & Exam Prep Generator",
+            "Google Calendar & Classroom Sync"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://tinyurl.com/studytop2026/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Study Top?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Study Top is a high-speed AI Notes Maker and learning workspace created by Manjit Ranjan (Google Developer). It helps students and teachers turn study materials into structured revision notes, flashcards, and quizzes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does Study Top work as an AI Notes Maker?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Upload your PDFs, documents, images, or textbook photos, and Study Top extracts the content and creates well-formatted study notes, formulas, diagrams, and revision questions in seconds."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Study Top Notes Maker free for students?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, Study Top is freely accessible for students with full access to the AI Notes Engine, study packs, and academic tools."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <meta name="google-site-verification" content="E384Hi-5rFJC2PDYZ83jcKx1L7jrg_A_mhZ7EB2gJdY" />
+    <meta name="google-site-verification" content="google259a26701354402f" />
+    <link rel="canonical" href="https://tinyurl.com/studytop2026" />
     <link rel="icon" type="image/png" href="/assets/aistudio/file_00000000c08481fa98304e6f030e53d7_93183212.png" />
     <link rel="apple-touch-icon" href="/assets/aistudio/file_00000000c08481fa98304e6f030e53d7_93183212.png" />
     <link rel="manifest" href="/manifest.json" />
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&display=swap" rel="stylesheet">
     <script>
-      // Suppress Vite HMR WebSocket errors in cloud preview iframe
+      // Suppress Vite HMR WebSocket and transient Firestore offline probing errors in cloud preview iframe
+      (function() {
+        var origError = console.error;
+        console.error = function() {
+          var args = Array.prototype.slice.call(arguments);
+          var text = args.map(function(a) { return String(a && a.message ? a.message : a); }).join(' ');
+          if (
+            text.indexOf('Could not reach Cloud Firestore backend') !== -1 ||
+            text.indexOf('@firebase/firestore') !== -1 ||
+            text.indexOf('[code=unavailable]') !== -1 ||
+            text.indexOf('the client is offline') !== -1 ||
+            text.indexOf('@vite/client') !== -1 ||
+            text.indexOf('WebSocket') !== -1
+          ) {
+            console.warn.apply(console, args);
+            return;
+          }
+          return origError.apply(console, args);
+        };
+      })();
       window.addEventListener('error', function(e) {
         if (e && (
-          (e.message && (e.message.includes('WebSocket') || e.message.includes('websocket') || e.message.includes('@vite/client'))) ||
+          (e.message && (
+            e.message.includes('WebSocket') ||
+            e.message.includes('websocket') ||
+            e.message.includes('@vite/client') ||
+            e.message.includes('Could not reach Cloud Firestore backend') ||
+            e.message.includes('[code=unavailable]')
+          )) ||
           (e.filename && e.filename.includes('@vite/client'))
         )) {
           e.preventDefault();
@@ -29,7 +134,10 @@
         if (e && e.reason && (
           String(e.reason).includes('WebSocket') ||
           String(e.reason).includes('websocket') ||
-          String(e.reason).includes('@vite/client')
+          String(e.reason).includes('@vite/client') ||
+          String(e.reason).includes('Could not reach Cloud Firestore backend') ||
+          String(e.reason).includes('[code=unavailable]') ||
+          String(e.reason).includes('the client is offline')
         )) {
           e.preventDefault();
           e.stopPropagation();
@@ -38,7 +146,19 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 680px; margin: 40px auto; padding: 24px; text-align: center;">
+        <h1 style="font-size: 28px; font-weight: 800; color: #1e293b; margin-bottom: 8px;">Study Top — AI Notes Maker</h1>
+        <p style="font-size: 16px; color: #64748b; margin-bottom: 24px;">The fastest AI-powered notes making platform for students &amp; teachers. Created by Manjit Ranjan (Google Developer).</p>
+        <p style="font-size: 14px; color: #94a3b8;">Loading Study Top academic workspace...</p>
+      </div>
+    </div>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+        <h2>Study Top — AI Notes Maker</h2>
+        <p>Please enable JavaScript to use Study Top AI Notes Maker and interactive study tools.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

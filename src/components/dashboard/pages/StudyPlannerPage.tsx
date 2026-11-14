@@ -11,8 +11,10 @@ import {
   Check, 
   ArrowRight,
   TrendingUp,
-  BookOpen
+  BookOpen,
+  ExternalLink
 } from 'lucide-react';
+import { buildGoogleCalendarEventUrl } from '../../../lib/googleServices';
 
 interface PlannerTask {
   id: string;
@@ -104,7 +106,23 @@ export const StudyPlannerPage: React.FC = () => {
             <span className="text-4xl font-black">{daysUntilExam}</span>
             <span className="text-sm font-bold text-blue-200 ml-1.5">days left</span>
           </div>
-          <p className="text-[11px] text-blue-200">Scheduled: {new Date(examDate).toLocaleDateString()}</p>
+          <div className="flex items-center justify-between pt-3 border-t border-blue-500/30">
+            <p className="text-[11px] text-blue-200">Scheduled: {new Date(examDate).toLocaleDateString()}</p>
+            <a
+              href={buildGoogleCalendarEventUrl({
+                title: `${examName} Exam`,
+                details: `Major examination milestone: ${examName}. Final revision and preparation scheduled.`,
+                startDate: new Date(examDate)
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/20 hover:bg-white/30 text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
+              title="Add Exam to Google Calendar"
+            >
+              <span>+ Google Calendar</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-80" />
+            </a>
+          </div>
         </div>
 
         {/* Daily Goals Progress Box */}
@@ -228,16 +246,33 @@ export const StudyPlannerPage: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteTask(task.id);
-                }}
-                className="p-1 text-slate-300 hover:text-rose-600 cursor-pointer"
-                title="Delete task"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <a
+                  href={buildGoogleCalendarEventUrl({
+                    title: `${task.subject}: ${task.title}`,
+                    details: `Study Task from Study Top 2.0: ${task.title} (Time Slot: ${task.time})`,
+                    location: 'Study Top 2.0 Academic Workspace'
+                  })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                  title="Add Task to Google Calendar"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                </a>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTask(task.id);
+                  }}
+                  className="p-1.5 text-slate-300 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Delete task"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -93,9 +93,15 @@ export const mindClient = {
    */
   async chat(params: {
     message: string;
-    history?: { role: 'user' | 'model'; parts: { text: string }[] }[];
+    history?: { role: 'user' | 'model'; parts: any[] }[];
     contextNote?: string;
+    documentText?: string;
     language?: string;
+    mode?: string;
+    tool?: string;
+    imageBase64?: string;
+    imageMimeType?: string;
+    images?: { base64: string; mimeType: string; name?: string }[];
   }): Promise<{ reply: string; timestamp: number }> {
     const res = await fetch('/api/mind/chat', {
       method: 'POST',

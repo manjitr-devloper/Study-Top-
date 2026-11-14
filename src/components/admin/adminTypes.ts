@@ -1,6 +1,8 @@
 export type AdminSection =
   | 'overview'
+  | 'agent_supervisor'
   | 'users'
+  | 'email_notifications'
   | 'students'
   | 'notes'
   | 'ai_assistant'

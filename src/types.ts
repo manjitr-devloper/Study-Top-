@@ -17,6 +17,11 @@ export interface UserProfile {
   tutorialCompleted?: boolean;
   examDate?: string;
   examName?: string;
+  account_type?: 'guest' | 'registered';
+  authentication_provider?: 'google' | 'email' | 'guest';
+  isGuest?: boolean;
+  created_at?: number;
+  account_status?: 'active' | 'suspended';
 }
 
 export interface NotebookSource {

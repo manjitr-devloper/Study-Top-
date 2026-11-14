@@ -1,0 +1,208 @@
+{
+  "updatedAt": 1794570571646,
+  "agents": [
+    {
+      "id": "AGENT-01",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552663,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-02",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552664,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-03",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552664,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-04",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552664,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-05",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-06",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-07",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-08",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-09",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-10",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-11",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552665,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-12",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-13",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-14",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-15",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-16",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    },
+    {
+      "id": "AGENT-17",
+      "status": "ONLINE",
+      "requestCount": 0,
+      "successCount": 0,
+      "failureCount": 0,
+      "averageResponseTimeMs": 0,
+      "lastActiveTimestamp": 1794570552666,
+      "lastError": null,
+      "tokensUsed": 0
+    }
+  ],
+  "communicationLogs": [],
+  "errorAuditLogs": [],
+  "userActivityLogs": [
+    {
+      "userId": "USR-ADMIN-MANJIT-01",
+      "userEmail": "manjitranjan180513@gmail.com",
+      "displayName": "Manjit Ranjan",
+      "provider": "google",
+      "action": "USER_ACCOUNT_SYNCED",
+      "details": "Manjit Ranjan (Google) recorded in Admin User Authentication Records",
+      "ipAddress": "127.0.0.1",
+      "isGuest": false,
+      "id": "ACT-MWEWZF5Q-103",
+      "timestamp": 1794570571646
+    }
+  ]
+}

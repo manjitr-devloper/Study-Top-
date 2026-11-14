@@ -126,7 +126,7 @@ export const OrganizedAnswerCard: React.FC<OrganizedAnswerCardProps> = ({
           </div>
           <div>${solution.replace(/\n/g, '<br/>')}</div>
           <div class="footer">
-            Created by Manjit Ranjan (Google Developer) • Study Top Learning Platform • https://studytoppp.netlify.app
+            Created by Manjit Ranjan (Google Developer) • Study Top Learning Platform • https://ais-pre-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app
           </div>
         </body>
       </html>

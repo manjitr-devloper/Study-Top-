@@ -108,6 +108,7 @@ import { LoginPage } from './components/LoginPage';
 import { PointWiseNoteViewer } from './components/notes/PointWiseNoteViewer';
 import { supabaseService } from './lib/supabase';
 import { stClient } from './lib/stCloudClient';
+import { setNotesSyncStatus } from './lib/notesSyncState';
 import { LanguageSelectorView } from './components/LanguageSelectorView';
 import { SmartNoteCreatorModal } from './components/SmartNoteCreatorModal';
 import { StudyTopAiAssistant } from './components/StudyTopAiAssistant';
@@ -129,7 +130,11 @@ import { StudyTopDashboard } from './components/dashboard/StudyTopDashboard';
 import { SingleNoteEditor } from './components/notes/SingleNoteEditor';
 import { DiagramStudioWorkspace } from './components/diagrams/DiagramStudioWorkspace';
 import { CreateNotesWorkspace } from './components/create/CreateNotesWorkspace';
+import { ConnectorsHub } from './components/connectors/ConnectorsHub';
 import { NoteExportCenter } from './components/export/NoteExportCenter';
+import { GoogleWorkspaceHub } from './components/google/GoogleWorkspaceHub';
+import { GoogleClassroomHub } from './components/classroom/GoogleClassroomHub';
+import { AppUpdatingMaintenanceScreen } from './components/maintenance/AppUpdatingMaintenanceScreen';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -163,7 +168,7 @@ import {
   breakDownTask,
   generateImageAI
 } from './lib/gemini';
-import { auth, db, googleProvider, appleProvider, microsoftProvider, handleFirestoreError, OperationType } from './lib/firebase';
+import { auth, db, googleProvider, appleProvider, microsoftProvider, handleFirestoreError, OperationType, getAccessToken, setCachedAccessToken } from './lib/firebase';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { 
@@ -177,6 +182,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
+  GoogleAuthProvider,
   User as FirebaseUser
 } from 'firebase/auth';
 import { 
@@ -207,6 +213,52 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // System Update / Maintenance Mode state
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [isAdminBypassed, setIsAdminBypassed] = useState(() => {
+    return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('study_top_admin_bypass') === 'true';
+  });
+
+  // Poll system maintenance & update status
+  useEffect(() => {
+    let isSubscribed = true;
+    const checkSystemStatus = async () => {
+      try {
+        const res = await fetch('/api/system/status');
+        if (res.ok) {
+          const data = await res.json();
+          if (isSubscribed) {
+            setIsMaintenanceMode(Boolean(data.maintenanceMode));
+          }
+        }
+      } catch (_) {}
+    };
+
+    checkSystemStatus();
+    const interval = setInterval(checkSystemStatus, 10000);
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const toggleMaintenanceMode = async (enabled: boolean) => {
+    try {
+      const res = await fetch('/api/system/maintenance/toggle', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-key': 'STUDY_TOP_SUPER_ADMIN_2026',
+          'x-user-email': 'manjitranjan180513@gmail.com'
+        },
+        body: JSON.stringify({ enabled })
+      });
+      if (res.ok) {
+        setIsMaintenanceMode(enabled);
+      }
+    } catch (_) {}
+  };
+
   const [notes, setNotes] = useState<Note[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskFolders, setTaskFolders] = useState<TaskFolder[]>([]);
@@ -226,8 +278,22 @@ export default function App() {
 
   const flushNoteUpdates = useCallback(() => {
     const edits = localNoteEditsRef.current;
-    if (Object.keys(edits).length > 0) {
-      Object.keys(edits).forEach(async (id) => {
+    const editKeys = Object.keys(edits);
+    if (editKeys.length > 0) {
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        setNotesSyncStatus('cached_offline', {
+          pendingCount: editKeys.length,
+          message: 'Offline: Notes changes cached locally'
+        });
+      } else {
+        setNotesSyncStatus('syncing', {
+          pendingCount: editKeys.length,
+          message: 'Syncing note changes to Firebase...'
+        });
+      }
+
+      editKeys.forEach(async (id) => {
         const updates = edits[id];
         if (Object.keys(updates).length > 0) {
           // 1. Sync to Study Top Cloud Database (ultra-fast own backend)
@@ -246,7 +312,19 @@ export default function App() {
                 ...updates,
                 updatedAt: Date.now()
               });
-            } catch (_) {}
+              setNotesSyncStatus('synced', {
+                lastSyncedAt: Date.now(),
+                message: 'Notes synced to Firebase Firestore',
+                pendingCount: 0
+              });
+            } catch (err: any) {
+              const offlineDetected = typeof navigator !== 'undefined' && (!navigator.onLine || err?.message?.includes('offline'));
+              if (offlineDetected) {
+                setNotesSyncStatus('cached_offline', {
+                  message: 'Offline: Notes cached in browser storage'
+                });
+              }
+            }
           }
         }
       });
@@ -442,6 +520,9 @@ export default function App() {
   const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
   const [unauthView, setUnauthView] = useState<'landing' | 'login'>('login');
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isConnectorsHubOpen, setIsConnectorsHubOpen] = useState(false);
+  const [isGoogleClassroomOpen, setIsGoogleClassroomOpen] = useState(false);
+  const [stagedClassroomAssignment, setStagedClassroomAssignment] = useState<any>(null);
   const [isDiagramStudioOpen, setIsDiagramStudioOpen] = useState(false);
   const [exportingNote, setExportingNote] = useState<Note | null>(null);
   const [noteWorkspaceMode, setNoteWorkspaceMode] = useState<'editor' | 'studio'>('editor');
@@ -655,19 +736,84 @@ export default function App() {
   }, [isTimerRunning, pomodoroTime, timerMode]);
 
   useEffect(() => {
-    // 1. If an auth state is immediately cached, apply it right away
-    if (auth.currentUser) {
+    // 1. Check for stored persistent guest session or email session
+    const storedGuest = localStorage.getItem('study_top_guest_session');
+    const storedSession = localStorage.getItem('study_top_session');
+    if (storedSession) {
+      try {
+        const sessionData = JSON.parse(storedSession);
+        if (sessionData && sessionData.uid) {
+          setUser(sessionData);
+          setUserProfile(sessionData);
+          setAuthLoading(false);
+        }
+      } catch (e) {}
+    } else if (storedGuest) {
+      try {
+        const guestData = JSON.parse(storedGuest);
+        if (guestData && guestData.uid) {
+          setUser(guestData);
+          setUserProfile(guestData);
+          setAuthLoading(false);
+        }
+      } catch (e) {}
+    } else if (auth.currentUser && !auth.currentUser.isAnonymous) {
       setUser(auth.currentUser);
       setAuthLoading(false);
     }
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
-      if (u) setUser(u);
+      if (u && !u.isAnonymous) {
+        setUser(u);
+        setAuthLoading(false);
+        // Report verified login activity to Master AI Supervisor
+        fetch('/api/user/activity', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: u.uid,
+            userEmail: u.email,
+            displayName: u.displayName || u.email?.split('@')[0] || 'Student',
+            provider: u.providerData?.[0]?.providerId === 'google.com' ? 'google' : 'password',
+            action: 'USER_LOGIN_AUTHENTICATED',
+            details: 'Student authenticated into Study Top workspace',
+            isGuest: false
+          })
+        }).catch(() => {});
+      } else {
+        if (u && u.isAnonymous && !localStorage.getItem('study_top_guest_session')) {
+          signOut(auth).catch(() => {});
+        }
+        const checkGuest = localStorage.getItem('study_top_guest_session');
+        if (checkGuest) {
+          try {
+            const guestData = JSON.parse(checkGuest);
+            if (guestData && guestData.uid) {
+              setUser(guestData);
+              setUserProfile(guestData);
+              // Report guest activity
+              fetch('/api/user/activity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: guestData.uid,
+                  displayName: guestData.displayName || 'Guest Student',
+                  provider: 'guest',
+                  action: 'GUEST_PASS_SESSION',
+                  details: 'Guest student engaged study session',
+                  isGuest: true
+                })
+              }).catch(() => {});
+            }
+          } catch (e) {}
+        }
+      }
       setAuthLoading(false);
     });
     // Fast loading guard: Ensure preview never hangs on initial auth check
     const fastTimer = setTimeout(() => {
       setAuthLoading(false);
-    }, 300);
+    }, 250);
     return () => {
       unsubscribe();
       clearTimeout(fastTimer);
@@ -683,80 +829,50 @@ export default function App() {
 
     let isMounted = true;
     const fetchProfile = async () => {
-      // If user profile is already present in state or user is operating via self-owned ST Cloud auth,
-      // no need to block on or query Firestore
       if (userProfile && userProfile.uid === user.uid) {
         setProfileLoading(false);
         return;
       }
-      setProfileLoading(true);
+
+      // Immediately populate profile from user object so UI renders with zero delay
+      const immediateProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email || '',
+        displayName: user.displayName || user.username || user.email?.split('@')[0] || 'Student',
+        photoURL: user.photoURL || null,
+        language: user.language || localStorage.getItem('study_top_lang') || 'English',
+        profession: user.profession || 'Student',
+        lastLogin: Date.now()
+      };
+      setUserProfile(immediateProfile);
+      setProfileLoading(false);
+
+      // Enrich in background from Study Top backend & Firestore without blocking UI
       try {
-        if (!auth.currentUser) {
-          const initialProfile: UserProfile = {
-            uid: user.uid,
-            email: user.email || '',
-            displayName: user.displayName || user.username || 'Student',
-            photoURL: user.photoURL || null,
-            language: user.language || localStorage.getItem('study_top_lang') || 'English',
-            profession: user.profession || 'Student',
-            lastLogin: Date.now()
-          };
-          setUserProfile(initialProfile);
-          setProfileLoading(false);
-          return;
-        }
-
-        // 2 second timeout guard so offline or slow Firestore never blocks the user
-        const fetchPromise = getDoc(doc(db, 'users', user.uid));
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
-        const profileDoc = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-        if (!isMounted) return;
-
-        if (profileDoc && profileDoc.exists && profileDoc.exists()) {
-          const profileData = profileDoc.data() as UserProfile;
-          setUserProfile(profileData);
-          if (!profileData.language) {
-            setOnboardingStep('language');
-          } else if (!profileData.profession) {
-            setOnboardingStep('class');
-          } else if (!profileData.displayName) {
-            setTempName(user.displayName || '');
-            setTempPhoto(user.photoURL || '');
-            setOnboardingStep('profile');
+        const res = await fetch(`/api/account/profile/${encodeURIComponent(user.uid)}`);
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          if (data?.profile) {
+            setUserProfile(prev => ({
+              ...(prev || immediateProfile),
+              displayName: data.profile.fullName || immediateProfile.displayName,
+              email: data.profile.email || immediateProfile.email,
+              photoURL: data.profile.avatarUrl || immediateProfile.photoURL
+            }));
           }
-        } else {
-          // Create initial profile
-          const initialProfile: UserProfile = {
-            uid: user.uid,
-            email: user.email || '',
-            displayName: user.displayName || user.email?.split('@')[0] || 'User',
-            photoURL: user.photoURL || null,
-            lastLogin: Date.now()
-          };
-          try {
-            await setDoc(doc(db, 'users', user.uid), initialProfile);
-          } catch (_) {}
-          if (!isMounted) return;
-          setUserProfile(initialProfile);
-          // First step right after login: Choose language
-          setOnboardingStep('language');
         }
-      } catch (error) {
-        console.warn("Profile fetch fallback", error);
-        if (!isMounted) return;
-        // Offline or sandbox fallback profile so user can proceed to language selection immediately
-        const fallbackProfile: UserProfile = {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || user.email?.split('@')[0] || 'User',
-          photoURL: user.photoURL || null,
-          lastLogin: Date.now()
-        };
-        setUserProfile(fallbackProfile);
-        setOnboardingStep('language');
-      } finally {
-        if (isMounted) setProfileLoading(false);
+      } catch (_) {}
+
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        getDoc(doc(db, 'users', user.uid))
+          .then((profileDoc) => {
+            if (!isMounted) return;
+            if (profileDoc && profileDoc.exists()) {
+              const profileData = profileDoc.data() as UserProfile;
+              setUserProfile(prev => ({ ...(prev || immediateProfile), ...profileData }));
+            }
+          })
+          .catch(() => {});
       }
     };
 
@@ -957,7 +1073,34 @@ export default function App() {
 
   const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        setCachedAccessToken(credential.accessToken);
+      }
+      if (result.user) {
+        fetch('/api/user/sync-account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(credential?.accessToken ? { Authorization: `Bearer ${credential.accessToken}` } : {})
+          },
+          body: JSON.stringify({
+            uid: result.user.uid,
+            email: result.user.email || '',
+            displayName: result.user.displayName || result.user.email?.split('@')[0] || 'Student',
+            fullName: result.user.displayName || result.user.email?.split('@')[0] || 'Student',
+            photoURL: result.user.photoURL || null,
+            provider: 'google',
+            eventType: 'GOOGLE_AUTH',
+            isGuest: false,
+            role: 'Student',
+            emailVerified: true,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+            gmailAccessToken: credential?.accessToken || undefined
+          })
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error("Login failed", error);
     }
@@ -1025,6 +1168,40 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      const uidToNotify = user?.uid || userProfile?.uid;
+      const emailToNotify = userProfile?.email || user?.email || '';
+      const nameToNotify = userProfile?.displayName || user?.displayName || 'User';
+      const providerToNotify = userProfile?.authentication_provider || (userProfile?.isGuest ? 'guest' : 'email');
+      const activeToken = await getAccessToken();
+      const resolvedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+      // Record Last Logout timestamp in Admin-Only User Authentication Records DB & send Logout Notification Email
+      fetch('/api/user/logout-event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { Authorization: `Bearer ${activeToken}` } : {})
+        },
+        body: JSON.stringify({
+          uid: uidToNotify,
+          email: emailToNotify,
+          displayName: nameToNotify,
+          provider: providerToNotify,
+          timeZone: resolvedTimeZone,
+          gmailAccessToken: activeToken || undefined
+        })
+      }).catch(() => {});
+
+      if (uidToNotify && auth.currentUser) {
+        updateDoc(doc(db, 'users', uidToNotify), {
+          last_logout_at: Date.now(),
+          last_activity: Date.now()
+        }).catch(() => {});
+      }
+
+      setCachedAccessToken(null);
+      localStorage.removeItem('study_top_guest_session');
+      localStorage.removeItem('study_top_session');
       await stClient.auth.logout().catch(() => {});
       await signOut(auth).catch(() => {});
       setUser(null);
@@ -1366,15 +1543,35 @@ export default function App() {
 
     // 3. Sync to Firestore if authenticated in Firebase
     if (auth.currentUser && auth.currentUser.uid === user.uid && !auth.currentUser.isAnonymous) {
-      const path = `users/${user.uid}/notes/${noteId}`;
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+      if (isOffline) {
+        setNotesSyncStatus('cached_offline', {
+          message: 'Offline: New note cached locally'
+        });
+      } else {
+        setNotesSyncStatus('syncing', {
+          message: 'Saving note to Firebase...'
+        });
+      }
+
       try {
         await setDoc(doc(db, `users/${user.uid}/notes`, noteId), {
           ...newNote,
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
-      } catch (error) {
-        // quiet fallback
+        setNotesSyncStatus('synced', {
+          lastSyncedAt: Date.now(),
+          message: 'Note saved & synced to Firebase',
+          notesCount: notes.length + 1
+        });
+      } catch (error: any) {
+        const isOff = typeof navigator !== 'undefined' && (!navigator.onLine || error?.message?.includes('offline'));
+        if (isOff) {
+          setNotesSyncStatus('cached_offline', {
+            message: 'Offline: Note cached in local storage'
+          });
+        }
       }
     }
   };
@@ -2107,38 +2304,6 @@ export default function App() {
     );
   }
 
-  if (user && (onboardingStep === 'language' || !userProfile?.language)) {
-    return (
-      <LanguageSelectorView
-        currentLanguage={userProfile?.language || 'English'}
-        onSelectLanguage={async (lang) => {
-          setTempLanguage(lang);
-          localStorage.setItem('study_top_lang', lang);
-          if (user) {
-            try {
-              const updates = {
-                language: lang,
-                profession: userProfile?.profession || 'Student',
-                lastLogin: Date.now()
-              };
-              await updateDoc(doc(db, 'users', user.uid || user.id), updates).catch(() => {});
-              setUserProfile(prev => prev ? { ...prev, ...updates } : ({
-                uid: user.uid || user.id,
-                email: user.email || '',
-                displayName: user.displayName || 'Student',
-                language: lang,
-                profession: 'Student',
-                lastLogin: Date.now()
-              } as UserProfile));
-            } catch (_) {}
-          }
-          setOnboardingStep(null);
-        }}
-        userEmail={user.email || ''}
-      />
-    );
-  }
-
   if (isSuperAdminOpen) {
     return (
       <SuperAdminDashboard
@@ -2153,34 +2318,75 @@ export default function App() {
     );
   }
 
+  // System Update / Maintenance Screen for students and visitors
+  const isSuperAdminAuthorized = 
+    user?.email?.toLowerCase() === 'manjitranjan180513@gmail.com' ||
+    userProfile?.email?.toLowerCase() === 'manjitranjan180513@gmail.com' ||
+    isAdminBypassed;
+
+  if (isMaintenanceMode && !isSuperAdminAuthorized) {
+    return (
+      <AppUpdatingMaintenanceScreen
+        onAdminBypass={() => setIsAdminBypassed(true)}
+        onRefreshStatus={async () => {
+          try {
+            const res = await fetch('/api/system/status');
+            if (res.ok) {
+              const data = await res.json();
+              setIsMaintenanceMode(Boolean(data.maintenanceMode));
+              return Boolean(data.maintenanceMode);
+            }
+          } catch (_) {}
+          return false;
+        }}
+      />
+    );
+  }
+
   if (!user && !collabConfig) {
-    if (unauthView === 'landing') {
-      return (
-        <LandingPage
-          onGetStarted={() => setUnauthView('login')}
-          onSignIn={() => setUnauthView('login')}
-          onExplore={() => setUnauthView('login')}
-          onOpenAdmin={() => setIsSuperAdminOpen(true)}
-        />
-      );
-    }
     return (
       <LoginPage
-        onLoginSuccess={(loggedUser: FirebaseUser) => {
+        onLoginSuccess={(loggedUser: any) => {
           setUser(loggedUser);
           setUserProfile({
             uid: loggedUser.uid,
             email: loggedUser.email || '',
             displayName: loggedUser.displayName || loggedUser.email?.split('@')[0] || 'Student',
             photoURL: loggedUser.photoURL || null,
-            language: '', // opens language selector immediately next
-            profession: 'Student',
-            lastLogin: Date.now()
+            language: loggedUser.language || 'English',
+            profession: loggedUser.profession || 'Student',
+            lastLogin: Date.now(),
+            account_type: loggedUser.isGuest ? 'guest' : 'registered',
+            authentication_provider: loggedUser.authentication_provider || (loggedUser.isGuest ? 'guest' : 'google'),
+            isGuest: Boolean(loggedUser.isGuest)
           });
-          setOnboardingStep('language');
+          const hasChosenLang = localStorage.getItem('study_top_lang_chosen') === 'true';
+          setOnboardingStep(hasChosenLang ? null : 'language');
         }}
         onOpenAdmin={() => setIsSuperAdminOpen(true)}
-        onExploreLanding={() => setUnauthView('landing')}
+      />
+    );
+  }
+
+  // Step 2: Language Selection immediately after Login
+  if (onboardingStep === 'language' && user) {
+    return (
+      <LanguageSelectorView
+        currentLanguage={userProfile?.language || localStorage.getItem('study_top_lang') || 'English'}
+        userEmail={user.email}
+        onSelectLanguage={async (selectedLang: string) => {
+          localStorage.setItem('study_top_lang', selectedLang);
+          localStorage.setItem('study_top_lang_chosen', 'true');
+          if (userProfile) {
+            setUserProfile({ ...userProfile, language: selectedLang });
+          }
+          if (auth.currentUser && !auth.currentUser.isAnonymous) {
+            try {
+              await setDoc(doc(db, 'users', auth.currentUser.uid), { language: selectedLang }, { merge: true });
+            } catch (err) {}
+          }
+          setOnboardingStep(null);
+        }}
       />
     );
   }
@@ -2188,7 +2394,19 @@ export default function App() {
   if (isCreateWorkspaceOpen) {
     return (
       <CreateNotesWorkspace
-        onBack={() => setIsCreateWorkspaceOpen(false)}
+        onBack={() => {
+          setIsCreateWorkspaceOpen(false);
+          setStagedClassroomAssignment(null);
+        }}
+        initialAssignment={stagedClassroomAssignment}
+        onOpenClassroomHub={() => {
+          setIsCreateWorkspaceOpen(false);
+          setIsGoogleClassroomOpen(true);
+        }}
+        onOpenConnectorsHub={() => {
+          setIsCreateWorkspaceOpen(false);
+          setIsConnectorsHubOpen(true);
+        }}
         onCreateNote={(noteData) => {
           createNote({
             title: noteData.title,
@@ -2197,8 +2415,40 @@ export default function App() {
             structuredData: noteData.structuredData
           });
           setIsCreateWorkspaceOpen(false);
+          setStagedClassroomAssignment(null);
         }}
         language={userProfile?.language}
+      />
+    );
+  }
+
+  if (isConnectorsHubOpen) {
+    return (
+      <ConnectorsHub
+        onBack={() => setIsConnectorsHubOpen(false)}
+        onOpenClassroom={() => {
+          setIsConnectorsHubOpen(false);
+          setIsGoogleClassroomOpen(true);
+        }}
+      />
+    );
+  }
+
+  if (isGoogleClassroomOpen) {
+    return (
+      <GoogleWorkspaceHub
+        onBack={() => setIsGoogleClassroomOpen(false)}
+        onConvertAssignmentToNotes={(assignment) => {
+          setStagedClassroomAssignment(assignment);
+          setIsGoogleClassroomOpen(false);
+          setIsCreateWorkspaceOpen(true);
+        }}
+        onSaveSearchAsNote={(title, content) => {
+          createNote({
+            title,
+            content
+          });
+        }}
       />
     );
   }
@@ -2262,6 +2512,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen w-full bg-slate-50 font-sans selection:bg-blue-100 text-slate-900 relative">
+      {/* Super Admin Maintenance Active Advisory Bar */}
+      {isMaintenanceMode && isSuperAdminAuthorized && (
+        <div className="bg-gradient-to-r from-amber-600 to-orange-600 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-md sticky top-0 z-50">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+            <span>🔧 Maintenance Mode is ACTIVE for all students. Visitors see the "Updating &amp; Fixing" screen. You are working with Developer Access.</span>
+          </div>
+          <button
+            onClick={() => toggleMaintenanceMode(false)}
+            className="px-3 py-1 bg-white hover:bg-amber-50 text-amber-900 rounded-lg text-xs font-black transition cursor-pointer shadow-xs ml-2 shrink-0"
+          >
+            Turn Off Maintenance
+          </button>
+        </div>
+      )}
+
       {userProfile && !userProfile.tutorialCompleted && localStorage.getItem('study_top_tutorial_done') !== 'true' && (
         <TutorialFlow 
           userProfile={userProfile} 
@@ -2317,6 +2583,9 @@ export default function App() {
         onOpenExport={(note) => setExportingNote(note)}
         onSelectLanguage={() => setOnboardingStep('language')}
         onSignOut={handleLogout}
+        onForceSyncNotes={flushNoteUpdates}
+        onOpenClassroom={() => setIsGoogleClassroomOpen(true)}
+        onOpenConnectors={() => setIsConnectorsHubOpen(true)}
       />
 
       {/* Study Top AI Floating Assistant Drawer / Modal */}

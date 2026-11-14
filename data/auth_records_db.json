@@ -1,0 +1,108 @@
+{
+  "updatedAt": 1794570571761,
+  "users": [
+    {
+      "uid": "USR-ADMIN-MANJIT-01",
+      "full_name": "Manjit Ranjan",
+      "displayName": "Manjit Ranjan",
+      "role": "Admin",
+      "email": "manjitranjan180513@gmail.com",
+      "login_provider": "Google",
+      "loginMethod": "Google",
+      "created_at": 1729000000000,
+      "createdAt": 1729000000000,
+      "last_login_at": 1794570571644,
+      "lastLogin": 1794570571644,
+      "last_logout_at": 1794570571761,
+      "lastLogout": 1794570571761,
+      "account_status": "Active",
+      "status": "active",
+      "email_verified": "Yes",
+      "emailVerified": true,
+      "deviceInfo": "Chrome 131 · Verified Admin Workstation",
+      "login_count": 2,
+      "loginCount": 2,
+      "last_activity": 1794570571761,
+      "lastActivityAt": 1794570571761,
+      "lastActivity": "Signed Out of Session",
+      "subscription": "Creator Root",
+      "storageUsedMb": 1.2,
+      "notesCount": 0,
+      "filesProcessed": 0,
+      "solverCount": 0,
+      "aiRequestsCount": 0,
+      "voiceChatsCount": 0,
+      "loginHistory": [
+        {
+          "id": "LH-OUT-MWEWZF8X",
+          "eventType": "LOGOUT",
+          "timestamp": 1794570571761,
+          "method": "Google",
+          "device": "curl/7.88.1",
+          "ip": "127.0.0.1",
+          "status": "logout"
+        },
+        {
+          "id": "LH-MWEWZF5O",
+          "eventType": "CREATE_ACCOUNT",
+          "timestamp": 1794570571644,
+          "method": "Google",
+          "device": "curl/7.88.1",
+          "ip": "127.0.0.1",
+          "status": "success"
+        },
+        {
+          "id": "LH-ROOT-INIT",
+          "eventType": "GOOGLE_AUTH",
+          "timestamp": 1794569882157,
+          "method": "Google",
+          "device": "Chrome 131 · Verified Admin Session",
+          "ip": "127.0.0.1",
+          "status": "success"
+        }
+      ],
+      "securityEvents": []
+    }
+  ],
+  "loginActivity": [
+    {
+      "event_id": "EVT-OUT-1794570571761-6309cc",
+      "uid": "USR-ADMIN-MANJIT-01",
+      "full_name": "Manjit Ranjan",
+      "email": "manjitranjan180513@gmail.com",
+      "event_type": "LOGOUT",
+      "authentication_method": "Google",
+      "event_timestamp": 1794570571761,
+      "success_status": true,
+      "ip_address": "127.0.0.1",
+      "device_info": "curl/7.88.1",
+      "details": "User signed out"
+    },
+    {
+      "event_id": "EVT-1794570571644-d30cad",
+      "uid": "USR-ADMIN-MANJIT-01",
+      "full_name": "Manjit Ranjan",
+      "email": "manjitranjan180513@gmail.com",
+      "event_type": "CREATE_ACCOUNT",
+      "authentication_method": "Google",
+      "event_timestamp": 1794570571644,
+      "success_status": true,
+      "ip_address": "127.0.0.1",
+      "device_info": "curl/7.88.1",
+      "details": "Authenticated via google"
+    },
+    {
+      "event_id": "EVT-ROOT-INIT",
+      "uid": "USR-ADMIN-MANJIT-01",
+      "full_name": "Manjit Ranjan",
+      "email": "manjitranjan180513@gmail.com",
+      "event_type": "GOOGLE_AUTH",
+      "authentication_method": "Google",
+      "event_timestamp": 1794569882157,
+      "success_status": true,
+      "ip_address": "127.0.0.1",
+      "device_info": "Chrome 131 · Verified Admin Workstation",
+      "details": "Verified Super Admin account provisioned"
+    }
+  ]
+}

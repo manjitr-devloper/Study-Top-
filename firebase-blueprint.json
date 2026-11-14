@@ -53,18 +53,44 @@
     },
     "User": {
       "title": "User",
-      "description": "User profile information.",
+      "description": "Authenticated user account metadata record (no passwords or secrets).",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
-        "email": { "type": "string" },
+        "full_name": { "type": "string" },
         "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["Student", "Guest", "Admin", "Teacher", "super_admin"] },
+        "login_provider": { "type": "string", "enum": ["Google", "Email", "Guest"] },
+        "created_at": { "type": "number" },
+        "last_login_at": { "type": "number" },
+        "last_logout_at": { "type": "number" },
+        "account_status": { "type": "string", "enum": ["Active", "Suspended"] },
+        "login_count": { "type": "number" },
+        "email_verified": { "type": "boolean" },
+        "last_activity": { "type": "number" },
         "photoURL": { "type": "string" },
         "lastLogin": { "type": "number" },
         "language": { "type": "string" },
         "profession": { "type": "string" }
       },
-      "required": ["uid", "email"]
+      "required": ["uid"]
+    },
+    "LoginActivity": {
+      "title": "LoginActivity",
+      "description": "Admin-only authentication event log (never stores passwords or tokens).",
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string" },
+        "uid": { "type": "string" },
+        "full_name": { "type": "string" },
+        "email": { "type": "string" },
+        "event_type": { "type": "string", "enum": ["SIGN_IN", "CREATE_ACCOUNT", "GOOGLE_AUTH", "GUEST_PASS", "LOGOUT", "FAILED_LOGIN"] },
+        "authentication_method": { "type": "string", "enum": ["Google", "Email", "Guest"] },
+        "event_timestamp": { "type": "number" },
+        "success_status": { "type": "boolean" }
+      },
+      "required": ["event_id", "uid", "event_type", "authentication_method", "event_timestamp", "success_status"]
     },
     "Classroom": {
       "title": "Classroom",
@@ -136,7 +162,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profiles"
+      "description": "Isolated user profiles and authentication metadata"
+    },
+    "/login_activity/{eventId}": {
+      "schema": "LoginActivity",
+      "description": "Admin-only user authentication event logs"
     },
     "/users/{userId}/notes/{noteId}": {
       "schema": "Note",

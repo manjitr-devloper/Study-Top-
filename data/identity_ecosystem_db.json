@@ -1,0 +1,200 @@
+{
+  "updatedAt": 1794570571646,
+  "profiles": [
+    {
+      "uid": "USR-ADMIN-MANJIT-01",
+      "studyTopId": "ST-ROOT-0001",
+      "fullName": "Manjit Ranjan",
+      "username": "manjit_ranjan",
+      "avatarUrl": "",
+      "coverBanner": "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #0ea5e9 100%)",
+      "profileThemeColor": "#2563eb",
+      "email": "manjitranjan180513@gmail.com",
+      "bio": "Creator of Study Top · Google Developer · Building AI-powered learning tools for students and educators worldwide.",
+      "school": "Study Top AI Research & Engineering",
+      "educationLevel": "Creator & Lead Architect",
+      "learningInterests": [
+        "Artificial Intelligence",
+        "Mathematics",
+        "Physics",
+        "Full-Stack Systems"
+      ],
+      "favoriteSubjects": [
+        "Mathematics",
+        "Computer Science",
+        "Physics"
+      ],
+      "createdAt": 1729000000000,
+      "lastLogin": 1794570571644,
+      "accountStatus": "Active",
+      "deletionStatus": "active",
+      "role": "Admin",
+      "accountType": "Google",
+      "learningPoints": 120,
+      "weeklyPoints": 120,
+      "monthlyPoints": 120,
+      "dailyPoints": 40,
+      "subjectPoints": {
+        "Mathematics": 50,
+        "Computer Science": 45,
+        "Physics": 25
+      },
+      "totalStudyHours": 14.5,
+      "studyStreak": 7,
+      "lastStudyDate": "2026-11-13",
+      "completedActivities": 6,
+      "unlockedAchievements": [
+        {
+          "badgeId": "first_study_session",
+          "unlockedAt": 1729000000000
+        },
+        {
+          "badgeId": "streak_7_days",
+          "unlockedAt": 1794550267210
+        },
+        {
+          "badgeId": "notes_creator",
+          "unlockedAt": 1794550267210
+        },
+        {
+          "badgeId": "top_100_student",
+          "unlockedAt": 1794550267210
+        },
+        {
+          "badgeId": "global_top_10",
+          "unlockedAt": 1794550267210
+        }
+      ],
+      "showcasedAchievements": [
+        "global_top_10",
+        "streak_7_days",
+        "first_study_session",
+        "notes_creator",
+        "top_100_student"
+      ],
+      "privacy": {
+        "profileVisibility": "public",
+        "showOnLeaderboard": true,
+        "showStudyStats": true,
+        "showAchievements": true
+      },
+      "notificationPrefs": {
+        "accountEvents": true,
+        "achievements": true,
+        "leaderboardChanges": true,
+        "weeklySummaries": true,
+        "streakMilestones": true,
+        "securityEvents": true
+      },
+      "followers": [],
+      "following": []
+    },
+    {
+      "uid": "c58bpwwGZzaaGfZMmSWI3XSex253",
+      "studyTopId": "ST-2026-8CE1C1",
+      "fullName": "Manjit Ranjan",
+      "username": "manjit_ranjan_1",
+      "avatarUrl": "",
+      "coverBanner": "linear-gradient(135deg, #0f172a 0%, #1e40af 55%, #0284c7 100%)",
+      "profileThemeColor": "#2563eb",
+      "email": "mindsetegoatpeak@gmail.com",
+      "bio": "Passionate learner on Study Top exploring AI-powered study notes, problem solving, and quizzes.",
+      "school": "",
+      "educationLevel": "Secondary / Higher Secondary",
+      "learningInterests": [
+        "Notes & Revision",
+        "Problem Solving",
+        "Practice Quizzes"
+      ],
+      "favoriteSubjects": [
+        "Mathematics",
+        "Science"
+      ],
+      "createdAt": 1794548405557,
+      "lastLogin": 1794548405603,
+      "accountStatus": "Active",
+      "deletionStatus": "active",
+      "role": "Student",
+      "accountType": "Google",
+      "learningPoints": 10,
+      "weeklyPoints": 10,
+      "monthlyPoints": 10,
+      "dailyPoints": 10,
+      "subjectPoints": {
+        "General": 10
+      },
+      "totalStudyHours": 0.2,
+      "studyStreak": 1,
+      "lastStudyDate": "2026-11-13",
+      "completedActivities": 1,
+      "unlockedAchievements": [
+        {
+          "badgeId": "first_study_session",
+          "unlockedAt": 1794550277413
+        }
+      ],
+      "showcasedAchievements": [
+        "first_study_session"
+      ],
+      "privacy": {
+        "profileVisibility": "public",
+        "showOnLeaderboard": true,
+        "showStudyStats": true,
+        "showAchievements": true
+      },
+      "notificationPrefs": {
+        "accountEvents": true,
+        "achievements": true,
+        "leaderboardChanges": true,
+        "weeklySummaries": true,
+        "streakMilestones": true,
+        "securityEvents": true
+      },
+      "followers": [],
+      "following": []
+    }
+  ],
+  "learningActivities": [],
+  "notifications": [
+    {
+      "id": "notif_1794550277414_919265",
+      "uid": "c58bpwwGZzaaGfZMmSWI3XSex253",
+      "type": "account_created",
+      "title": "Welcome to Study Top!",
+      "message": "Your permanent Study Top Account (ST-2026-8CE1C1) and handle @manjit_ranjan_1 are ready. You unlocked the \"First Study Session\" badge (+10 pts)!",
+      "read": false,
+      "createdAt": 1794550277414
+    }
+  ],
+  "deletionRequests": [],
+  "adminExportLogs": [
+    {
+      "id": "exp_1794550745407_0f78b4",
+      "adminEmail": "manjitranjan180513@gmail.com",
+      "reportTitle": "Study Top Official User & Leaderboard Report (ALL)",
+      "filterScope": "all",
+      "recordsExported": 2,
+      "format": "PDF",
+      "createdAt": 1794550745407
+    }
+  ],
+  "socialPosts": [
+    {
+      "id": "post_welcome_manjit",
+      "uid": "USR-ADMIN-MANJIT-01",
+      "authorName": "Manjit Ranjan",
+      "authorUsername": "manjit_ranjan",
+      "authorAvatar": "",
+      "authorRole": "Admin",
+      "subject": "Study Top 3.0 Community",
+      "content": "Welcome to Study Top! Claim your unique @username in your Profile, complete study sessions or quizzes to earn verified learning points, and climb the Global Student Leaderboard.",
+      "attachmentType": "study_tip",
+      "attachmentTitle": "Welcome to Study Top 3.0 Social Study Hub",
+      "likes": [
+        "USR-ADMIN-MANJIT-01"
+      ],
+      "comments": [],
+      "createdAt": 1794550267210
+    }
+  ]
+}

@@ -33,7 +33,9 @@ import {
   Award, 
   AlertOctagon,
   HardDrive,
-  Mic
+  Mic,
+  BrainCircuit,
+  Mail
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -42,7 +44,9 @@ import { AdminSection } from './adminTypes';
 
 // Modular Section Components
 import { OverviewSection } from './sections/OverviewSection';
+import { MasterAgentSupervisorSection } from './sections/MasterAgentSupervisorSection';
 import { UserManagementSection } from './sections/UserManagementSection';
+import { EmailManagementSection } from './sections/EmailManagementSection';
 import { StudentAccountsSection } from './sections/StudentAccountsSection';
 import { NotesManagementSection } from './sections/NotesManagementSection';
 import { AiAssistantSection } from './sections/AiAssistantSection';
@@ -99,14 +103,15 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
   // State Stores
   const [metrics, setMetrics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [loginActivity, setLoginActivity] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [aiConfig, setAiConfig] = useState<any>(null);
   const [voiceChats, setVoiceChats] = useState<any[]>([]);
   const [files, setFiles] = useState<any[]>([]);
-  const [storageStats, setStorageStats] = useState({ usedMb: 42.8, maxMb: 5120 });
+  const [storageStats, setStorageStats] = useState({ usedMb: 0, maxMb: 5120 });
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
-  const [mrr, setMrr] = useState(79.84);
+  const [mrr, setMrr] = useState(0);
   const [reports, setReports] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [firewall, setFirewall] = useState<any>(null);
@@ -138,16 +143,18 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
     setTimeout(() => setFeedbackMessage(null), 3500);
   };
 
-  // 20 Structured Navigation Items
+  // 21 Structured Navigation Items
   const navigationItems = [
     // 1. Core
     { id: 'overview' as AdminSection, label: 'Overview Dashboard', icon: Activity, category: 'Core' },
-    { id: 'users' as AdminSection, label: 'User Directory', icon: Users, category: 'Core', badge: users.length || undefined },
+    { id: 'users' as AdminSection, label: 'User Management → Login Records', icon: Users, category: 'Core', badge: users.length || undefined },
+    { id: 'email_notifications' as AdminSection, label: 'Email Notification System (4.0)', icon: Mail, category: 'Core', badge: 'OWNER SMTP' },
     { id: 'students' as AdminSection, label: 'Student Accounts', icon: GraduationCap, category: 'Core', badge: students.length || undefined },
     { id: 'notes' as AdminSection, label: 'Notes Catalog', icon: FileText, category: 'Core', badge: notes.length || undefined },
 
     // 2. Intelligence
-    { id: 'ai_assistant' as AdminSection, label: 'AI Assistant & Voice', icon: Sparkles, category: 'Intelligence' },
+    { id: 'agent_supervisor' as AdminSection, label: 'AI Agent Control Center (17)', icon: BrainCircuit, category: 'Intelligence', badge: '17 AGENTS' },
+    { id: 'ai_assistant' as AdminSection, label: 'AI Model & Voice Management', icon: Sparkles, category: 'Intelligence' },
     { id: 'files' as AdminSection, label: 'Files & OCR Uploads', icon: FolderArchive, category: 'Intelligence' },
     { id: 'subscriptions' as AdminSection, label: 'Platform AI Quotas & Limits', icon: Sliders, category: 'Intelligence' },
 
@@ -201,7 +208,11 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
       ]);
 
       if (mRes.status === 'fulfilled' && mRes.value.ok) setMetrics((await mRes.value.json()).metrics);
-      if (uRes.status === 'fulfilled' && uRes.value.ok) setUsers((await uRes.value.json()).users || []);
+      if (uRes.status === 'fulfilled' && uRes.value.ok) {
+        const uData = await uRes.value.json();
+        setUsers(uData.users || []);
+        setLoginActivity(uData.loginActivity || []);
+      }
       if (sRes.status === 'fulfilled' && sRes.value.ok) setStudents((await sRes.value.json()).students || []);
       if (nRes.status === 'fulfilled' && nRes.value.ok) setNotes((await nRes.value.json()).notes || []);
       if (aiRes.status === 'fulfilled' && aiRes.value.ok) setAiConfig((await aiRes.value.json()).config);
@@ -209,12 +220,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
       if (fRes.status === 'fulfilled' && fRes.value.ok) {
         const fData = await fRes.value.json();
         setFiles(fData.files || []);
-        setStorageStats({ usedMb: fData.totalStorageUsedMb, maxMb: fData.maxAllowedMb });
+        setStorageStats({ usedMb: fData.totalStorageUsedMb || 0, maxMb: fData.maxAllowedMb || 5120 });
       }
       if (subRes.status === 'fulfilled' && subRes.value.ok) {
         const subData = await subRes.value.json();
         setSubscriptions(subData.plans || []);
-        setMrr(subData.monthlyRecurringRevenue || 79.84);
+        setMrr(subData.monthlyRecurringRevenue || 0);
       }
       if (repRes.status === 'fulfilled' && repRes.value.ok) setReports((await repRes.value.json()).reports || []);
       if (annRes.status === 'fulfilled' && annRes.value.ok) setAnnouncements((await annRes.value.json()).announcements || []);
@@ -229,8 +240,13 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
   };
 
   useEffect(() => {
+    if (!isAuthorized) return;
     loadDashboardData();
-  }, [currentUser]);
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [currentUser, isAuthorized, adminKey]);
 
   // Handle Logout
   const handleLogout = async () => {
@@ -810,7 +826,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
                     {!sidebarCollapsed && (
                       <span className="truncate text-left flex-1">{item.label}</span>
                     )}
-                    {!sidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+                    {!sidebarCollapsed && item.badge !== undefined && Boolean(item.badge) && (
                       <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                         isActive ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
                       }`}>
@@ -883,7 +899,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
                       >
                         <Icon className="w-4 h-4 shrink-0" />
                         <span className="truncate text-left flex-1">{item.label}</span>
-                        {item.badge !== undefined && item.badge > 0 && (
+                        {item.badge !== undefined && Boolean(item.badge) && (
                           <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                             {item.badge}
                           </span>
@@ -925,11 +941,25 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onClos
             />
           )}
 
+          {activeTab === 'agent_supervisor' && (
+            <MasterAgentSupervisorSection adminKey={adminKey} />
+          )}
+
           {activeTab === 'users' && (
             <UserManagementSection
               users={users}
+              loginActivity={loginActivity}
               onUserAction={handleUserAction}
               actionLoading={actionLoading}
+              darkMode={darkMode}
+              adminKey={adminKey}
+              onRefresh={loadDashboardData}
+            />
+          )}
+
+          {activeTab === 'email_notifications' && (
+            <EmailManagementSection
+              adminKey={adminKey}
               darkMode={darkMode}
             />
           )}

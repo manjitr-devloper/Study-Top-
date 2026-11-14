@@ -22,10 +22,12 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
   const fetchHealth = async () => {
     setLoading(true);
     try {
+      const savedKey = typeof window !== 'undefined' ? sessionStorage.getItem('study_top_admin_key') || '' : '';
       const res = await fetch('/api/admin/health/detailed', {
         headers: {
           'x-user-email': 'manjitranjan180513@gmail.com',
-          'Authorization': 'Bearer manjitranjan180513@gmail.com'
+          'Authorization': 'Bearer manjitranjan180513@gmail.com',
+          ...(savedKey ? { 'x-admin-key': savedKey } : {})
         }
       });
       const data = await res.json();
@@ -92,11 +94,11 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
             <span>Resident Memory (RSS)</span>
             <HardDrive className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">
-            {telemetry?.memory?.rssMb || 78} MB
+          <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">
+            {telemetry?.memory?.rssMb ?? 0} MB
           </p>
-          <span className="text-[10px] text-slate-400 mt-1 block">
-            Heap Used: {telemetry?.memory?.heapUsedMb || 45} MB
+          <span className="text-[10px] text-slate-400 mt-1 block tabular-nums">
+            Heap Used: {telemetry?.memory?.heapUsedMb ?? 0} MB
           </span>
         </div>
 
@@ -107,8 +109,8 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
             <span>CPU Event Load</span>
             <Cpu className="w-4 h-4 text-purple-500" />
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">
-            {telemetry?.cpuLoad || '4.2%'}
+          <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">
+            {telemetry?.cpuLoad || '0%'}
           </p>
           <span className="text-[10px] text-purple-500 font-bold mt-1 block">
             Optimal (Non-blocking)
@@ -122,8 +124,8 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
             <span>Active Sockets</span>
             <Wifi className="w-4 h-4 text-cyan-500" />
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">
-            {telemetry?.networkConnections || 18} Connections
+          <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">
+            {telemetry?.networkConnections ?? 1} Connections
           </p>
           <span className="text-[10px] text-slate-400 mt-1 block">
             HTTP/2 + WebSocket Pool
@@ -143,7 +145,7 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
             <span className="text-slate-500 block text-[10px] uppercase font-bold">Node.js Engine</span>
-            <span className="font-mono font-bold text-slate-900 dark:text-white">{telemetry?.nodeVersion || 'v20.x'}</span>
+            <span className="font-mono font-bold text-slate-900 dark:text-white">{telemetry?.nodeVersion || '...'}</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
@@ -153,12 +155,12 @@ export const SystemHealthSection: React.FC<SystemHealthSectionProps> = ({ darkMo
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
             <span className="text-slate-500 block text-[10px] uppercase font-bold">Storage Drive</span>
-            <span className="font-mono font-bold text-slate-900 dark:text-white">{telemetry?.storageDiskUsage || '8.4%'}</span>
+            <span className="font-mono font-bold text-slate-900 dark:text-white">{telemetry?.storageDiskUsage || '0 KB'}</span>
           </div>
 
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
             <span className="text-slate-500 block text-[10px] uppercase font-bold">Status</span>
-            <span className="font-bold text-emerald-500">100% Operational</span>
+            <span className="font-bold text-emerald-500">{telemetry?.status || 'Optimal'}</span>
           </div>
         </div>
       </div>

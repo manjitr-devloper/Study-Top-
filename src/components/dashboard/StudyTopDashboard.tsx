@@ -22,6 +22,7 @@ import {
   RotateCcw,
   Menu,
   X,
+  Rocket,
   FileUp,
   Camera,
   Youtube,
@@ -72,11 +73,16 @@ import {
   Languages,
   Server,
   HardDrive,
-  Bot
+  Bot,
+  Plug
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Note, UserProfile, StudyFolder } from '../../types';
 import { StudyTopLogo } from '../StudyTopLogo';
+import { FirebaseSyncStatusIndicator } from '../common/FirebaseSyncStatusIndicator';
+import { auth, googleProvider, db } from '../../lib/firebase';
+import { signInWithPopup, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { 
   solveQuestionStepByStep, 
   translateAndDefine, 
@@ -105,8 +111,12 @@ import { TextSimplifierPage } from './pages/TextSimplifierPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 import { HelpSupportPage } from './pages/HelpSupportPage';
+import { GlobalLeaderboardPage } from './pages/GlobalLeaderboardPage';
+import { GoogleAdsBanner } from '../ads/GoogleAdsBanner';
+import { Trophy, AtSign, Users } from 'lucide-react';
 
 // Advanced Educational Solvers & AI Tutor
+import { UniversalAiSolverView } from '../solvers/UniversalAiSolverView';
 import { MathSolverView } from '../solvers/MathSolverView';
 import { SubjectSolverView } from '../solvers/SubjectSolverView';
 import { UniversalDocSolverView } from '../solvers/UniversalDocSolverView';
@@ -124,6 +134,8 @@ import { PdfToolsWorkspaceView } from '../pdf/PdfToolsWorkspaceView';
 
 export type DashboardNav = 
   | 'dashboard'
+  | 'leaderboard'
+  | 'universal-solver'
   | 'ai-workspace'
   | 'notebooks'
   | 'ai-chat'
@@ -154,6 +166,7 @@ export type DashboardNav =
   | 'settings'
   | 'support'
   | 'sign-out'
+  | 'connectors'
   // Existing useful sub-features
   | 'workspace'
   | 'recent'
@@ -190,6 +203,9 @@ interface StudyTopDashboardProps {
   onOpenExport: (note: Note) => void;
   onSelectLanguage: () => void;
   onSignOut: () => void;
+  onForceSyncNotes?: () => void;
+  onOpenClassroom?: () => void;
+  onOpenConnectors?: () => void;
 }
 
 export const StudyTopDashboard: React.FC<StudyTopDashboardProps> = ({
@@ -208,7 +224,10 @@ export const StudyTopDashboard: React.FC<StudyTopDashboardProps> = ({
   onToggleFavorite,
   onOpenExport,
   onSelectLanguage,
-  onSignOut
+  onSignOut,
+  onForceSyncNotes,
+  onOpenClassroom,
+  onOpenConnectors
 }) => {
   const [activeNav, setActiveNav] = useState<DashboardNav>('dashboard');
   const [isNavDrawerOpen, setIsNavDrawerOpen] = useState(false);
@@ -223,6 +242,62 @@ export const StudyTopDashboard: React.FC<StudyTopDashboardProps> = ({
   const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isPrelaunchModalOpen, setIsPrelaunchModalOpen] = useState(false);
+
+  // Study Top 3.0 Account Summary & Real Notifications
+  const [accountSummary, setAccountSummary] = useState<any>(null);
+  const [realNotifications, setRealNotifications] = useState<any[]>([]);
+  const [showWelcomeBanner, setShowWelcomeBanner] = useState(true);
+
+  useEffect(() => {
+    const uid = user?.uid || userProfile?.uid;
+    if (!uid) return;
+    const loadAccountAndNotifications = async () => {
+      try {
+        const emailParam = encodeURIComponent(user?.email || userProfile?.email || '');
+        const nameParam = encodeURIComponent(userProfile?.displayName || user?.displayName || 'Study Top Scholar');
+        const [profRes, notifRes] = await Promise.all([
+          fetch(`/api/account/profile/${encodeURIComponent(uid)}?email=${emailParam}&fullName=${nameParam}`),
+          fetch(`/api/account/notifications/${encodeURIComponent(uid)}`)
+        ]);
+        if (profRes.ok) {
+          const profData = await profRes.json();
+          if (profData.account) setAccountSummary(profData.account);
+        }
+        if (notifRes.ok) {
+          const notifData = await notifRes.json();
+          setRealNotifications(notifData.notifications || []);
+        }
+      } catch {
+        // Fallback silently
+      }
+    };
+    loadAccountAndNotifications();
+  }, [user?.uid, userProfile?.uid, activeNav]);
+
+  const handleMarkAllRead = async () => {
+    const uid = user?.uid || userProfile?.uid;
+    if (!uid) return;
+    try {
+      await fetch('/api/account/notifications/read-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid })
+      });
+      setRealNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Guest Mode Upgrade State
+  const [isGuestUpgradeModalOpen, setIsGuestUpgradeModalOpen] = useState(false);
+  const [upgradeMode, setUpgradeMode] = useState<'options' | 'email'>('options');
+  const [upgradeEmail, setUpgradeEmail] = useState('');
+  const [upgradePassword, setUpgradePassword] = useState('');
+  const [upgradeFullName, setUpgradeFullName] = useState(userProfile?.displayName || '');
+  const [isUpgradingGuest, setIsUpgradingGuest] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
 
   // Tool Specific States
   // 1. Math Solver
@@ -339,31 +414,42 @@ interface SidebarNavItem {
   } = {
     main: [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { id: 'ai-workspace', label: 'AI Workspace', icon: Sparkles, badge: 'MIND 1.0' },
-      { id: 'create-notes', label: 'Create Notes', icon: Plus },
+      { id: 'leaderboard', label: 'Global Leaderboard & Social', icon: Trophy, badge: '3.0' },
+      { id: 'universal-solver', label: 'Universal AI Solver', icon: Sparkles, badge: 'All-in-1' },
+      { id: 'create-notes', label: 'Notes Generator 2.0', icon: Plus, badge: 'MIND 3.0' },
+      { id: 'ai-chat', label: 'AI Study Assistant Chat', icon: Bot, badge: 'Live' },
+      { id: 'ai-tutor', label: 'Personal AI Tutor', icon: GraduationCap },
       { id: 'notebooks', label: 'My Notebooks', icon: BookOpen },
-      { id: 'ai-chat', label: 'AI Chat', icon: Bot, badge: 'Live' },
-      { id: 'st-cloud', label: 'Study Top Cloud', icon: Server, badge: 'Online' }
+      { id: 'ai-workspace', label: 'Multi-Agent Workspace', icon: Brain, badge: '17 Agents' }
     ],
     solvers: [
-      { id: 'math-solver', label: 'Math Solver', icon: Calculator },
-      { id: 'science-solver', label: 'Science Solver', icon: Atom },
-      { id: 'all-subjects', label: 'Subject Solvers (23)', icon: Sparkles, badge: '23' },
-      { id: 'pdf-tools', label: 'PDF Tools', icon: FileText },
-      { id: 'youtube-notes', label: 'YouTube Notes', icon: Youtube }
+      { id: 'universal-solver', label: 'Universal AI Solver (All Subjects, Image & PDF)', icon: Sparkles, badge: 'Unified' },
+      { id: 'all-subjects', label: 'Browse 23 Academic Subjects', icon: Compass, badge: '23' },
+      { id: 'pdf-tools', label: 'PDF Chat & Document Studio', icon: FileText },
+      { id: 'youtube-notes', label: 'YouTube Video to Notes', icon: Youtube },
+      { id: 'summarizer', label: 'Document Summarizer', icon: AlignLeft },
+      { id: 'diagrams', label: 'AI Diagram & Mind Map Studio', icon: Network }
     ],
     studyTools: [
+      { id: 'quiz', label: 'AI Quiz Generator', icon: CheckSquare, badge: 'Auto' },
+      { id: 'flashcards', label: 'Smart Flashcards', icon: RotateCcw },
+      { id: 'practice-tests', label: 'Practice Test & Exam Prep', icon: Award },
+      { id: 'planner', label: 'Smart Study Planner', icon: Calendar },
       { id: 'dictionary', label: 'Academic Dictionary', icon: BookOpen },
       { id: 'translator', label: 'Multilingual Translator', icon: Globe },
+      { id: 'grammar', label: 'Grammar & Writing Checker', icon: SpellCheck },
+      { id: 'saved-solutions', label: 'Saved Solutions Vault', icon: Bookmark },
+      { id: 'learning-history', label: 'Doubt & Progress Tracker', icon: History },
       { id: 'my-notes', label: 'Study Materials & Notes', icon: Layers, badge: nonDeletedNotes.length },
-      { id: 'recent', label: 'Recent Activity', icon: History },
-      { id: 'favorites', label: 'Bookmarks', icon: Bookmark },
+      { id: 'google-classroom' as any, label: 'Google Workspace Suite', icon: GraduationCap, badge: '5-in-1' },
+      { id: 'connectors' as any, label: 'Connectors Hub', icon: Plug },
       { id: 'storage-manager', label: 'Storage Manager', icon: HardDrive },
       { id: 'trash', label: 'Trash', icon: Trash2 }
     ],
     account: [
-      { id: 'profile', label: 'User Profile', icon: User },
-      { id: 'settings', label: 'Settings', icon: Settings },
+      { id: 'profile', label: 'User Profile (@username)', icon: User },
+      { id: 'leaderboard', label: 'Global Leaderboard & Social', icon: Trophy },
+      { id: 'settings', label: 'Account Settings & Privacy', icon: Settings },
       { id: 'support', label: 'Help & Support', icon: HelpCircle },
       { id: 'sign-out', label: 'Sign Out', icon: LogOut }
     ]
@@ -377,6 +463,20 @@ interface SidebarNavItem {
     }
     if (navId === 'create-notes') {
       onCreateNewNote();
+      setIsNavDrawerOpen(false);
+      return;
+    }
+    if ((navId as any) === 'google-classroom') {
+      if (onOpenClassroom) {
+        onOpenClassroom();
+      }
+      setIsNavDrawerOpen(false);
+      return;
+    }
+    if ((navId as any) === 'connectors') {
+      if (onOpenConnectors) {
+        onOpenConnectors();
+      }
       setIsNavDrawerOpen(false);
       return;
     }
@@ -652,16 +752,16 @@ interface SidebarNavItem {
           <nav className="space-y-1">
             {[
               { id: 'dashboard', label: '1. Dashboard', icon: LayoutDashboard },
-              { id: 'ai-tutor', label: '2. AI Tutor & Mentor', icon: GraduationCap },
-              { id: 'math-solver', label: '3. Math Solver', icon: Calculator },
-              { id: 'subject-solver', label: '4. Multi-Subject Solver', icon: Sparkles },
-              { id: 'ask-image-pdf', label: '10. Ask from Image/PDF', icon: FileSearch },
-              { id: 'my-notes', label: '12. My Notes', icon: FileText },
-              { id: 'saved-solutions', label: '13. Saved Solutions', icon: Bookmark },
-              { id: 'learning-history', label: '14. Learning History', icon: History },
-              { id: 'practice-tests', label: '18. Practice Tests', icon: Award },
-              { id: 'flashcards', label: 'Flashcards Decks', icon: RotateCcw },
-              { id: 'settings', label: '20. Settings', icon: Settings }
+              { id: 'leaderboard', label: '2. Global Leaderboard', icon: Trophy },
+              { id: 'universal-solver', label: '3. Universal AI Solver', icon: Sparkles },
+              { id: 'ai-chat', label: '4. AI Study Chat', icon: Bot },
+              { id: 'ai-tutor', label: '5. Personal AI Tutor', icon: GraduationCap },
+              { id: 'my-notes', label: '6. My Notes Vault', icon: FileText },
+              { id: 'quiz', label: '7. AI Quiz Generator', icon: CheckSquare },
+              { id: 'flashcards', label: '8. Smart Flashcards', icon: RotateCcw },
+              { id: 'practice-tests', label: '9. Practice Tests', icon: Award },
+              { id: 'profile', label: '10. Profile (@username)', icon: User },
+              { id: 'settings', label: '11. Account Settings', icon: Settings }
             ].map((item) => (
               <button
                 key={item.id}
@@ -711,14 +811,16 @@ interface SidebarNavItem {
             {!sidebarCollapsed && <span>All 30 Menu Tools</span>}
           </button>
 
-          <button
-            onClick={onOpenAdmin}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 transition-colors cursor-pointer"
-            title="Admin Console"
-          >
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-            {!sidebarCollapsed && <span className="truncate">Admin Login</span>}
-          </button>
+          {(user?.email || userProfile?.email || '').toLowerCase() === 'manjitranjan180513@gmail.com' && (
+            <button
+              onClick={onOpenAdmin}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 transition-colors cursor-pointer"
+              title="Admin Console"
+            >
+              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+              {!sidebarCollapsed && <span className="truncate">Admin Dashboard</span>}
+            </button>
+          )}
         </div>
       </aside>
 
@@ -796,16 +898,46 @@ interface SidebarNavItem {
 
           {/* Top Actions: Notifications, Quick Create (+), Pre-Launch Status, Profile */}
           <div className="flex items-center gap-2.5">
-            {/* Backend Connection Status (Study Top Cloud Telemetry) */}
-            <button
-              onClick={() => handleNavClick('st-cloud')}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs hover:bg-slate-800"
-              title="Study Top Cloud & MIND 1.0 Real-Time Telemetry"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <Server className="w-3.5 h-3.5 text-blue-400" />
-              <span className="font-mono text-[11px]">ST Cloud: Online</span>
-            </button>
+            {/* Guest Mode Indicator and Upgrade CTA */}
+            {(userProfile?.isGuest || userProfile?.account_type === 'guest') && (
+              <button
+                onClick={() => {
+                  setUpgradeError(null);
+                  setUpgradeSuccess(null);
+                  setUpgradeFullName(userProfile?.displayName || '');
+                  setIsGuestUpgradeModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black transition-all cursor-pointer shadow-sm animate-pulse hover:animate-none"
+                title="You are in Guest Mode. Upgrade to keep all notes permanently with Google or Email!"
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Guest Mode • Save Permanently</span>
+              </button>
+            )}
+
+            {/* Firebase Notes Sync & Offline Cache Status Indicator */}
+            <FirebaseSyncStatusIndicator 
+              notesCount={notes.length} 
+              onForceSync={onForceSyncNotes}
+            />
+
+            {/* Google Workspace Suite Button */}
+            {onOpenClassroom && (
+              <button
+                onClick={onOpenClassroom}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 text-slate-800 text-xs font-bold transition-all cursor-pointer shadow-xs hover:shadow-sm"
+                title="Google Workspace & Services Suite (Classroom, Calendar, Meet, Docs, Search Grounding)"
+              >
+                <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span className="hidden sm:inline">Google Suite</span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-blue-50 text-blue-700 font-black">5-in-1</span>
+              </button>
+            )}
 
             {/* Storage Usage Pill */}
             <button
@@ -816,6 +948,20 @@ interface SidebarNavItem {
               <HardDrive className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-[11px]">Storage: 10 GB</span>
             </button>
+
+            {/* Short Live App Link Pill */}
+            <a
+              href="https://tinyurl.com/studytop2026"
+              target="_blank"
+              rel="noreferrer"
+              className="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-bold transition-all cursor-pointer hover:bg-indigo-100 shadow-sm"
+              title="Official Short Live App URL: tinyurl.com/studytop2026"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Globe className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="text-[11px] font-mono font-semibold">tinyurl.com/studytop2026</span>
+              <ArrowUpRight className="w-3 h-3 text-indigo-600" />
+            </a>
 
             {/* AI Assistant Shortcut */}
             <button
@@ -902,36 +1048,60 @@ interface SidebarNavItem {
                 title="Notifications"
               >
                 <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                {realNotifications.some(n => !n.read) && (
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
+                )}
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 space-y-2">
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 space-y-2 max-h-96 overflow-y-auto">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-black text-slate-900">Notifications</span>
-                    <span className="text-[10px] font-bold text-blue-600">Mark all read</span>
+                    <span className="text-xs font-black text-slate-900">
+                      Notifications ({realNotifications.filter(n => !n.read).length} unread)
+                    </span>
+                    <button
+                      onClick={handleMarkAllRead}
+                      className="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      Mark all read
+                    </button>
                   </div>
                   <div className="space-y-1.5">
-                    <div className="p-2 bg-blue-50/50 rounded-xl text-xs space-y-0.5">
-                      <p className="font-bold text-slate-900">Welcome to Study Top Scholar</p>
-                      <p className="text-[11px] text-slate-500">All 30 AI academic study tools are ready for your exams.</p>
-                    </div>
-                    <div className="p-2 bg-slate-50 rounded-xl text-xs space-y-0.5">
-                      <p className="font-bold text-slate-900">Study Streak Active 🔥</p>
-                      <p className="text-[11px] text-slate-500">7 consecutive days of active revision completed.</p>
-                    </div>
+                    {realNotifications.length === 0 ? (
+                      <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-500 text-center">
+                        Welcome to Study Top! Your achievements and leaderboard rank updates will appear here.
+                      </div>
+                    ) : (
+                      realNotifications.slice(0, 6).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`p-2.5 rounded-xl text-xs space-y-0.5 border ${
+                            n.read ? 'bg-slate-50 border-slate-100' : 'bg-blue-50/70 border-blue-200'
+                          }`}
+                        >
+                          <p className="font-bold text-slate-900">{n.title}</p>
+                          <p className="text-[11px] text-slate-600 leading-snug">{n.message}</p>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Quick Math Solver Action */}
+            {/* Global Leaderboard Shortcut */}
             <button
-              onClick={() => handleNavClick('math-solver')}
-              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 font-bold text-xs rounded-xl border border-blue-200 flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+              onClick={() => handleNavClick('leaderboard')}
+              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs rounded-xl border border-amber-200 flex items-center gap-1.5 cursor-pointer shadow-2xs transition"
+              title="Global Study Top Leaderboard & Social Study Wall"
             >
-              <Calculator className="w-3.5 h-3.5 text-blue-600" />
-              <span className="hidden sm:inline">Math Solver</span>
+              <Trophy className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Leaderboard</span>
+              {accountSummary?.learningPoints !== undefined && (
+                <span className="text-[10px] font-black px-1.5 py-0.2 bg-amber-200/70 text-amber-900 rounded-md">
+                  {accountSummary.learningPoints} pts
+                </span>
+              )}
             </button>
 
             {/* Profile Avatar & Menu */}
@@ -941,22 +1111,51 @@ interface SidebarNavItem {
                 className="flex items-center gap-2 cursor-pointer p-1 rounded-xl hover:bg-slate-100 transition-colors"
                 title="Account Menu"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200">
-                  {userProfile?.displayName ? userProfile.displayName.charAt(0).toUpperCase() : (user?.displayName?.charAt(0) || 'S')}
+                {accountSummary?.photoURL ? (
+                  <img
+                    src={accountSummary.photoURL}
+                    alt={accountSummary.displayName || 'Profile'}
+                    className="w-8 h-8 rounded-full object-cover border border-blue-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center border border-blue-200">
+                    {userProfile?.displayName ? userProfile.displayName.charAt(0).toUpperCase() : (user?.displayName?.charAt(0) || 'S')}
+                  </div>
+                )}
+                <div className="hidden md:flex flex-col text-left">
+                  <span className="text-xs font-bold text-slate-800 leading-tight">
+                    {accountSummary?.displayName || userProfile?.displayName || user?.displayName || 'Scholar'}
+                  </span>
+                  {accountSummary?.username && (
+                    <span className="text-[10px] font-mono font-bold text-blue-600 leading-tight">
+                      @{accountSummary.username}
+                    </span>
+                  )}
                 </div>
-                <span className="text-xs font-semibold text-slate-700 hidden md:inline">
-                  {userProfile?.displayName || user?.displayName || 'Scholar'}
-                </span>
               </div>
 
               {isProfileMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs font-semibold text-slate-700">
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs font-semibold text-slate-700">
+                  {accountSummary && (
+                    <div className="px-4 py-2 border-b border-slate-100 mb-1">
+                      <div className="font-black text-slate-900 truncate">{accountSummary.displayName}</div>
+                      <div className="text-[11px] font-mono text-blue-600">@{accountSummary.username}</div>
+                      <div className="text-[10px] font-mono text-slate-400 mt-0.5">ID: {accountSummary.studyTopId}</div>
+                    </div>
+                  )}
                   <button
                     onClick={() => handleNavClick('profile')}
                     className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800"
                   >
                     <User className="w-4 h-4 text-blue-600" />
-                    <span>My Profile</span>
+                    <span>My Profile (@username)</span>
+                  </button>
+                  <button
+                    onClick={() => handleNavClick('leaderboard')}
+                    className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800"
+                  >
+                    <Trophy className="w-4 h-4 text-amber-600" />
+                    <span>Global Leaderboard</span>
                   </button>
                   <button
                     onClick={() => handleNavClick('saved-solutions')}
@@ -977,7 +1176,7 @@ interface SidebarNavItem {
                     className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center gap-2 text-slate-800"
                   >
                     <Settings className="w-4 h-4 text-slate-500" />
-                    <span>Settings</span>
+                    <span>Account Settings</span>
                   </button>
                   <div className="my-1 border-t border-slate-100" />
                   <button
@@ -1000,50 +1199,70 @@ interface SidebarNavItem {
           {activeNav === 'dashboard' && (
             <div className="space-y-6 max-w-6xl mx-auto">
               
-              {/* SECTION A: WELCOME SECTION */}
+              {/* SECTION A: WELCOME TO STUDY TOP 3.0 ACCOUNT BANNER */}
               <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 text-white rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
                 <div className="space-y-2.5 max-w-2xl relative z-10">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-200" />
-                    <span>Study Top • Created by Manjit Ranjan (Google Developer)</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                      <span>Welcome to Study Top! • Created by Manjit Ranjan (Google Developer)</span>
+                    </div>
+                    {accountSummary?.username && (
+                      <button
+                        onClick={() => setActiveNav('profile')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-400/20 border border-emerald-300/30 text-[11px] font-mono font-black text-emerald-100 hover:bg-emerald-400/30 cursor-pointer"
+                      >
+                        <AtSign className="w-3 h-3" />
+                        <span>{accountSummary.username}</span>
+                      </button>
+                    )}
+                    {accountSummary?.studyTopId && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-mono font-bold text-blue-100">
+                        ID: {accountSummary.studyTopId}
+                      </span>
+                    )}
                   </div>
                   <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
-                    Welcome back, {userProfile?.displayName || user?.displayName || 'Scholar'}!
+                    Welcome to Study Top, {accountSummary?.displayName || userProfile?.displayName || user?.displayName || 'Scholar'}!
                   </h2>
-                  <div className="text-xs font-semibold text-blue-200 flex items-center gap-2">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <div className="text-xs font-semibold text-blue-200 flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Account Created: {accountSummary?.accountCreatedAt ? new Date(accountSummary.accountCreatedAt).toLocaleDateString() : new Date().toLocaleDateString()}</span>
+                    </span>
+                    <span>•</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Last Login: {accountSummary?.lastLoginAt ? new Date(accountSummary.lastLoginAt).toLocaleString() : 'Active Now'}</span>
+                    </span>
                   </div>
                   <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed font-medium">
-                    "Consistent daily revision transforms effort into academic excellence." Your MIND 1.0 multi-engine AI tutor and PostgreSQL workspace are active.
+                    Your permanent Study Top 3.0 Account is active with {accountSummary?.learningPoints ?? 25} Learning Points, {accountSummary?.achievements?.length ?? 1} Achievement Badges, and your public profile URL <code className="font-mono bg-white/15 px-1.5 py-0.5 rounded">studytop.app/@{accountSummary?.username || 'scholar'}</code>.
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2.5 shrink-0 relative z-10">
                   <button
-                    onClick={() => {
-                      if (nonDeletedNotes.length > 0) {
-                        onOpenNote(nonDeletedNotes[0].id);
-                      } else {
-                        onCreateNewNote();
-                      }
-                    }}
-                    className="px-5 py-3 bg-white text-blue-700 font-extrabold text-xs rounded-xl shadow-xs hover:bg-blue-50 transition cursor-pointer flex items-center gap-2 active:scale-95"
+                    onClick={() => setActiveNav('leaderboard')}
+                    className="px-5 py-3 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl shadow-xs transition cursor-pointer flex items-center gap-2 active:scale-95"
                   >
-                    <span>Continue Learning</span>
-                    <ArrowRight className="w-4 h-4" />
+                    <Trophy className="w-4 h-4" />
+                    <span>Leaderboard &amp; Social</span>
                   </button>
                   <button
-                    onClick={() => setActiveNav('ai-workspace')}
-                    className="px-4 py-3 bg-white/15 hover:bg-white/25 text-white font-extrabold text-xs rounded-xl border border-white/20 transition cursor-pointer flex items-center gap-1.5"
+                    onClick={() => setActiveNav('profile')}
+                    className="px-4 py-3 bg-white text-blue-700 font-extrabold text-xs rounded-xl shadow-xs hover:bg-blue-50 transition cursor-pointer flex items-center gap-1.5"
                   >
-                    <Sparkles className="w-4 h-4 text-blue-200" />
-                    <span>AI Workspace</span>
+                    <User className="w-4 h-4" />
+                    <span>My @Profile</span>
                   </button>
                 </div>
               </div>
 
-              {/* SECTION B: QUICK ACTIONS (8 Core Academic Workflows) */}
+              {/* GOOGLE ADS SPONSORED BANNER (Publisher: manjitranjan180513@gmail.com) */}
+              <GoogleAdsBanner slot="dashboard" />
+
+              {/* SECTION B: QUICK ACTIONS (9 Core Academic Workflows) */}
               <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
@@ -1052,16 +1271,17 @@ interface SidebarNavItem {
                   <span className="text-[10px] text-slate-400 font-bold">1-Click Fast Launch</span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2.5">
                   {[
+                    { label: 'Leaderboard & Social', icon: Trophy, color: 'text-amber-600 bg-amber-50', action: () => setActiveNav('leaderboard') },
+                    { label: 'Universal AI Solver', icon: Sparkles, color: 'text-indigo-600 bg-indigo-50', action: () => setActiveNav('universal-solver') },
                     { label: 'Create Notes', icon: Plus, color: 'text-blue-600 bg-blue-50', action: onCreateNewNote },
-                    { label: 'Upload PDF', icon: FileUp, color: 'text-indigo-600 bg-indigo-50', action: () => setActiveNav('pdf-tools') },
-                    { label: 'Upload Image', icon: Camera, color: 'text-emerald-600 bg-emerald-50', action: () => setActiveNav('image-solver') },
-                    { label: 'Ask AI Chat', icon: Bot, color: 'text-purple-600 bg-purple-50', action: () => setActiveNav('ai-chat') },
-                    { label: 'Math Solver', icon: Calculator, color: 'text-amber-600 bg-amber-50', action: () => setActiveNav('math-solver') },
-                    { label: 'New Notebook', icon: BookOpen, color: 'text-cyan-600 bg-cyan-50', action: () => setActiveNav('notebooks') },
-                    { label: 'YouTube Notes', icon: Youtube, color: 'text-red-600 bg-red-50', action: () => setActiveNav('youtube-notes') },
-                    { label: 'AI Study Session', icon: Sparkles, color: 'text-rose-600 bg-rose-50', action: () => setActiveNav('ai-workspace') }
+                    { label: 'AI Study Chat', icon: Bot, color: 'text-purple-600 bg-purple-50', action: () => setActiveNav('ai-chat') },
+                    { label: 'Personal AI Tutor', icon: GraduationCap, color: 'text-emerald-600 bg-emerald-50', action: () => setActiveNav('ai-tutor') },
+                    { label: 'PDF & Doc Studio', icon: FileUp, color: 'text-amber-600 bg-amber-50', action: () => setActiveNav('pdf-tools') },
+                    { label: 'Practice Tests', icon: Award, color: 'text-rose-600 bg-rose-50', action: () => setActiveNav('practice-tests') },
+                    { label: 'My @Profile', icon: AtSign, color: 'text-cyan-600 bg-cyan-50', action: () => setActiveNav('profile') },
+                    { label: 'YouTube to Notes', icon: Youtube, color: 'text-red-600 bg-red-50', action: () => setActiveNav('youtube-notes') }
                   ].map((act, i) => (
                     <button
                       key={i}
@@ -1238,27 +1458,27 @@ interface SidebarNavItem {
                   </div>
                 </div>
 
-                {/* SECTION G: UNIFIED BACKEND & MIND 1.0 STATUS */}
+                {/* SECTION G: AI STUDY GOALS & EXAM READINESS */}
                 <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                       <Sparkles className="w-4 h-4 text-blue-600" />
-                      <span>MIND 1.0 &amp; Unified Backend Status</span>
+                      <span>AI Study Assistant &amp; Exam Readiness</span>
                     </h3>
                     <button
-                      onClick={() => setActiveNav('ai-workspace')}
+                      onClick={() => setActiveNav('universal-solver')}
                       className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
                     >
-                      Open Workspace
+                      Launch AI Solver
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
                     {[
-                      { name: 'Firebase Auth', status: 'Active' },
-                      { name: 'Cloud Firestore', status: 'Connected' },
-                      { name: 'Supabase / Postgres', status: 'Synchronized' },
-                      { name: 'MIND 1.0 AI', status: 'Online' }
+                      { name: 'Point-Wise Notes', status: 'Ready' },
+                      { name: 'Universal Solver', status: 'Ready' },
+                      { name: 'Smart Flashcards', status: 'Ready' },
+                      { name: 'Practice Quizzes', status: 'Ready' }
                     ].map((svc, i) => (
                       <div key={i} className="p-2.5 bg-slate-50 rounded-xl flex items-center justify-between gap-1">
                         <span className="font-bold text-slate-700 text-[11px] truncate">{svc.name}</span>
@@ -1271,8 +1491,8 @@ interface SidebarNavItem {
                   </div>
 
                   <div className="pt-1 text-[11px] text-slate-500 flex items-center justify-between border-t border-slate-100">
-                    <span>Architecture: <strong className="text-slate-800">Firebase + Supabase + SQL + PostgreSQL</strong></span>
-                    <span className="text-emerald-600 font-bold">MIND 1.0: Active</span>
+                    <span>Your personal study workspace is private and isolated</span>
+                    <span className="text-emerald-600 font-bold">Protected Workspace</span>
                   </div>
                 </div>
 
@@ -1399,7 +1619,7 @@ interface SidebarNavItem {
                       className="px-5 py-2.5 bg-white text-blue-700 hover:bg-blue-50 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer flex items-center gap-2"
                     >
                       <Plus className="w-4 h-4" />
-                      <span>Create Notes with MIND 1.0</span>
+                      <span>Create Notes with MIND 2.0</span>
                     </button>
                     <button
                       onClick={() => setActiveNav('ai-workspace')}
@@ -1455,7 +1675,18 @@ interface SidebarNavItem {
 
           {/* ==================== PAGE: AI CHAT ==================== */}
           {activeNav === 'ai-chat' && (
-            <DedicatedAiChatView userProfile={userProfile} />
+            <DedicatedAiChatView 
+              userProfile={userProfile} 
+              onNavigateToNotes={() => {
+                if (onCreateNewNote) {
+                  onCreateNewNote();
+                }
+                setActiveNav('create-notes');
+              }}
+              onNavigateToMath={() => {
+                setActiveNav('math-solver');
+              }}
+            />
           )}
 
           {/* ==================== PAGE: PDF TOOLS ==================== */}
@@ -1478,61 +1709,41 @@ interface SidebarNavItem {
             <AiTutorView user={user} userProfile={userProfile} />
           )}
 
-          {/* ==================== PAGE 3: ADVANCED AI MATH SOLVER (100% FREE) ==================== */}
-          {activeNav === 'math-solver' && (
-            <MathSolverView
-              user={user}
-              userProfile={userProfile}
+          {/* ==================== UNIFIED UNIVERSAL AI SOLVER (MERGED ALL SUBJECTS, IMAGE, PDF & MATH) ==================== */}
+          {(activeNav === 'universal-solver' ||
+            activeNav === 'math-solver' ||
+            activeNav === 'subject-solver' ||
+            activeNav === 'science-solver' ||
+            activeNav === 'english-solver' ||
+            activeNav === 'social-solver' ||
+            activeNav === 'computer-solver' ||
+            activeNav === 'hindi-solver' ||
+            activeNav === 'ask-image-pdf' ||
+            activeNav === 'pdf-solver' ||
+            activeNav === 'image-solver') && (
+            <UniversalAiSolverView
+              language={userProfile?.language || 'English'}
+              initialSubject={
+                activeNav === 'math-solver'
+                  ? 'Mathematics'
+                  : activeNav === 'science-solver'
+                  ? 'Physics'
+                  : activeNav === 'english-solver'
+                  ? 'English'
+                  : activeNav === 'social-solver'
+                  ? 'History'
+                  : activeNav === 'computer-solver'
+                  ? 'Computer Science'
+                  : activeNav === 'hindi-solver'
+                  ? 'Hindi & Sanskrit'
+                  : activeNav === 'subject-solver' && activeSubjectPreset
+                  ? activeSubjectPreset
+                  : 'Auto-Detect'
+              }
+              userId={user?.uid}
+              userEmail={user?.email}
               onSaveToNotes={() => onCreateNewNote()}
             />
-          )}
-
-          {/* ==================== PAGE 4: MULTI-SUBJECT SOLVER ==================== */}
-          {activeNav === 'subject-solver' && (
-            <SubjectSolverView
-              initialSubject={activeSubjectPreset}
-              initialQuestion={activeQuestionPreset}
-              user={user}
-              userProfile={userProfile}
-              onSaveToNotes={() => onCreateNewNote()}
-            />
-          )}
-
-          {/* Direct Shortcuts for Specific Subjects */}
-          {activeNav === 'science-solver' && (
-            <SubjectSolverView initialSubject="Science" user={user} userProfile={userProfile} onSaveToNotes={() => onCreateNewNote()} />
-          )}
-          {activeNav === 'english-solver' && (
-            <SubjectSolverView initialSubject="English" user={user} userProfile={userProfile} onSaveToNotes={() => onCreateNewNote()} />
-          )}
-          {activeNav === 'social-solver' && (
-            <SubjectSolverView initialSubject="Social Science" user={user} userProfile={userProfile} onSaveToNotes={() => onCreateNewNote()} />
-          )}
-          {activeNav === 'computer-solver' && (
-            <SubjectSolverView initialSubject="Computer Science" user={user} userProfile={userProfile} onSaveToNotes={() => onCreateNewNote()} />
-          )}
-          {activeNav === 'hindi-solver' && (
-            <SubjectSolverView initialSubject="Hindi" user={user} userProfile={userProfile} onSaveToNotes={() => onCreateNewNote()} />
-          )}
-
-          {/* ==================== PAGE 10: ASK FROM IMAGE / PDF ==================== */}
-          {activeNav === 'ask-image-pdf' && (
-            <UniversalDocSolverView
-              user={user}
-              userProfile={userProfile}
-              onSaveToNotes={() => onCreateNewNote()}
-            />
-          )}
-
-
-          {/* ==================== PAGE: PDF QUESTION SOLVER ==================== */}
-          {activeNav === 'pdf-solver' && (
-            <PdfQuestionSolverPage language={userProfile?.language || 'English'} />
-          )}
-
-          {/* ==================== PAGE: IMAGE QUESTION SOLVER ==================== */}
-          {activeNav === 'image-solver' && (
-            <ImageQuestionSolverPage language={userProfile?.language || 'English'} />
           )}
 
           {/* ==================== PAGE: AI SUMMARIZER ==================== */}
@@ -1708,6 +1919,14 @@ interface SidebarNavItem {
             <PracticeTestsView user={user} userProfile={userProfile} />
           )}
 
+          {/* ==================== PAGE: GLOBAL LEADERBOARD & SOCIAL WALL ==================== */}
+          {activeNav === 'leaderboard' && (
+            <GlobalLeaderboardPage
+              user={user}
+              userProfile={userProfile}
+            />
+          )}
+
           {/* ==================== PAGE: USER PROFILE ==================== */}
           {activeNav === 'profile' && (
             <UserProfilePage
@@ -1715,6 +1934,7 @@ interface SidebarNavItem {
               user={user}
               onSelectLanguage={onSelectLanguage}
               onSignOut={() => setIsSignOutModalOpen(true)}
+              onNavigateToLeaderboard={() => setActiveNav('leaderboard')}
             />
           )}
 
@@ -1723,6 +1943,8 @@ interface SidebarNavItem {
             <SettingsPage
               language={userProfile?.language || 'English'}
               onSelectLanguage={onSelectLanguage}
+              user={user}
+              onSignOut={onSignOut}
             />
           )}
 
@@ -1855,6 +2077,260 @@ interface SidebarNavItem {
       )}
 
       {/* ========================================================================= */}
+      {/* GUEST MODE UPGRADE MODAL */}
+      {/* ========================================================================= */}
+      {isGuestUpgradeModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                  <Rocket className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Upgrade to Permanent Account</h3>
+                  <p className="text-xs text-slate-500 font-medium">Keep your notes, uploaded files &amp; AI chats</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsGuestUpgradeModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-1">
+              <p className="font-bold">✨ Zero Data Loss Guarantee</p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                All your study notes, AI solver history, flashcards, and preferences created in Guest Mode will be instantly linked to your permanent profile.
+              </p>
+            </div>
+
+            {upgradeError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                <span>{upgradeError}</span>
+              </div>
+            )}
+
+            {upgradeSuccess && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-600" />
+                <span>{upgradeSuccess}</span>
+              </div>
+            )}
+
+            {upgradeMode === 'options' ? (
+              <div className="space-y-3">
+                {/* Option 1: Continue with Google */}
+                <button
+                  type="button"
+                  disabled={isUpgradingGuest}
+                  onClick={async () => {
+                    setIsUpgradingGuest(true);
+                    setUpgradeError(null);
+                    try {
+                      const res = await signInWithPopup(auth, googleProvider);
+                      const permUser = res.user;
+                      const guestUid = userProfile?.uid || 'guest';
+
+                      // Sync profile to firestore
+                      const userDocRef = doc(db, 'users', permUser.uid);
+                      await setDoc(userDocRef, {
+                        uid: permUser.uid,
+                        displayName: permUser.displayName || 'Study Top Scholar',
+                        email: permUser.email,
+                        photoURL: permUser.photoURL || '',
+                        role: 'student',
+                        account_type: 'registered',
+                        authentication_provider: 'google',
+                        isGuest: false,
+                        updatedAt: new Date().toISOString()
+                      }, { merge: true });
+
+                      // Migrate data on backend
+                      await fetch('/api/auth/migrate-guest-data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          guestUid,
+                          permanentUid: permUser.uid,
+                          email: permUser.email,
+                          fullName: permUser.displayName
+                        })
+                      });
+
+                      // Clean up guest local storage
+                      localStorage.removeItem('study_top_guest_session');
+
+                      setUpgradeSuccess('Account upgraded successfully! Reloading with permanent profile...');
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 1200);
+                    } catch (err: any) {
+                      setUpgradeError(err.message || 'Google linking failed. Please try again.');
+                      setIsUpgradingGuest(false);
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 hover:bg-slate-50 font-bold text-xs text-slate-700 cursor-pointer transition shadow-2xs disabled:opacity-50"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>Link with Google Account</span>
+                </button>
+
+                <div className="relative my-2 text-center">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100" /></div>
+                  <span className="relative bg-white px-2 text-[11px] font-semibold text-slate-400">or</span>
+                </div>
+
+                {/* Option 2: Link with Email */}
+                <button
+                  type="button"
+                  onClick={() => setUpgradeMode('email')}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition shadow-xs"
+                >
+                  <Lock className="w-4 h-4" />
+                  <span>Set Up Email &amp; Password</span>
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!upgradeEmail || !upgradePassword) {
+                    setUpgradeError('Please provide both email and password.');
+                    return;
+                  }
+                  if (upgradePassword.length < 6) {
+                    setUpgradeError('Password must be at least 6 characters.');
+                    return;
+                  }
+
+                  setIsUpgradingGuest(true);
+                  setUpgradeError(null);
+                  try {
+                    const res = await createUserWithEmailAndPassword(auth, upgradeEmail, upgradePassword);
+                    const permUser = res.user;
+                    if (upgradeFullName) {
+                      await updateProfile(permUser, { displayName: upgradeFullName });
+                    }
+
+                    const guestUid = userProfile?.uid || 'guest';
+                    const userDocRef = doc(db, 'users', permUser.uid);
+                    await setDoc(userDocRef, {
+                      uid: permUser.uid,
+                      displayName: upgradeFullName || 'Study Top Scholar',
+                      email: upgradeEmail,
+                      role: 'student',
+                      account_type: 'registered',
+                      authentication_provider: 'password',
+                      isGuest: false,
+                      updatedAt: new Date().toISOString()
+                    }, { merge: true });
+
+                    // Migrate data on backend & send welcome email
+                    await fetch('/api/auth/migrate-guest-data', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        guestUid,
+                        permanentUid: permUser.uid,
+                        email: upgradeEmail,
+                        fullName: upgradeFullName
+                      })
+                    });
+
+                    await fetch('/api/auth/send-welcome-email', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        email: upgradeEmail,
+                        fullName: upgradeFullName || 'Scholar'
+                      })
+                    });
+
+                    localStorage.removeItem('study_top_guest_session');
+                    setUpgradeSuccess('Account upgraded successfully! Reloading...');
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1200);
+                  } catch (err: any) {
+                    setUpgradeError(err.message || 'Upgrade failed. Please check your credentials.');
+                    setIsUpgradingGuest(false);
+                  }
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={upgradeFullName}
+                    onChange={(e) => setUpgradeFullName(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Enter your name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={upgradeEmail}
+                    onChange={(e) => setUpgradeEmail(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="student@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 mb-1">Create Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={upgradePassword}
+                    onChange={(e) => setUpgradePassword(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="At least 6 characters"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setUpgradeMode('options')}
+                    className="w-1/3 py-2.5 px-3 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs cursor-pointer transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUpgradingGuest}
+                    className="w-2/3 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer transition shadow-xs disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isUpgradingGuest ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Upgrading...</span>
+                      </>
+                    ) : (
+                      <span>Complete Upgrade</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 5. PRE-LAUNCH & NETLIFY VERIFICATION MODAL                                */}
       {/* ========================================================================= */}
       {isPrelaunchModalOpen && (
@@ -1894,49 +2370,104 @@ interface SidebarNavItem {
                 Deployment &amp; Backend Infrastructure
               </div>
 
-              {/* 1. Netlify Domain */}
-              <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 flex items-center justify-between">
+              {/* 1. Verified Short Cloud Production Link */}
+              <div className="p-3.5 rounded-2xl border-2 border-indigo-300 bg-indigo-50/70 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
                     <Globe className="w-4 h-4" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <span>Netlify Domain</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black">Active</span>
+                      <span>Short Production URL</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900 font-black">100% Active</span>
                     </div>
-                    <div className="text-[11px] text-slate-500 font-mono">
-                      https://studytoppp.netlify.app
+                    <div className="text-[11px] text-indigo-900 font-mono font-bold break-all">
+                      https://tinyurl.com/studytop2026
                     </div>
                   </div>
                 </div>
                 <a
-                  href="https://studytoppp.netlify.app"
+                  href="https://tinyurl.com/studytop2026"
                   target="_blank"
                   rel="noreferrer"
-                  className="p-2 rounded-xl text-blue-600 hover:bg-blue-50 transition"
+                  className="p-2 px-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1 font-bold text-xs shrink-0"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <span>Open Live</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
 
-              {/* 2. SPA Routing */}
+              {/* 2. Official App Shortlink: Study Top */}
+              <div className="p-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Official App Shortlink</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-200 text-indigo-900 font-black">studytop</span>
+                    </div>
+                    <div className="text-[11px] text-indigo-900 font-mono font-bold break-all">
+                      https://is.gd/studytop
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href="https://is.gd/studytop"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 px-3 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1 font-bold text-xs shrink-0"
+                >
+                  <span>Open</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              {/* 3. Official Live Production Link */}
+              <div className="p-3 rounded-2xl border border-emerald-300 bg-emerald-50/70 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                    <Globe className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <span>Direct Cloud Run Link</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-200 text-emerald-900 font-black">Live</span>
+                    </div>
+                    <div className="text-[11px] text-emerald-800 font-mono font-semibold break-all">
+                      https://ais-pre-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href="https://ais-pre-dexg65p2k7wdhydz6k57ax-798150476797.asia-southeast1.run.app"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 px-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition flex items-center gap-1 font-bold text-xs shrink-0"
+                >
+                  <span>Open</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+
+              {/* SPA Routing */}
               <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
                     <CheckCircle className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-bold text-slate-900">SPA Redirects &amp; Headers</div>
+                    <div className="text-xs font-bold text-slate-900">Cloud Run SPA Architecture</div>
                     <div className="text-[11px] text-slate-500">
-                      <code>netlify.toml</code> &amp; <code>public/_redirects</code> configured (0 404s on refresh)
+                      Express gateway middleware with instant client hydration (0 404s on refresh)
                     </div>
                   </div>
                 </div>
                 <span className="text-xs font-black text-emerald-600">Configured</span>
               </div>
 
-              {/* 3. Firebase Auth */}
+              {/* Firebase Auth */}
               <div className="p-3 rounded-2xl border border-slate-200 bg-slate-50/80 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
@@ -1945,7 +2476,7 @@ interface SidebarNavItem {
                   <div>
                     <div className="text-xs font-bold text-slate-900">Firebase Authentication</div>
                     <div className="text-[11px] text-slate-500">
-                      Email/Password + Google Sign-In · Authorized Domain: <code>studytoppp.netlify.app</code>
+                      Email/Password + Google Sign-In + Guest Anonymous Mode
                     </div>
                   </div>
                 </div>

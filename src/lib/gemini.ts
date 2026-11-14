@@ -1,11 +1,12 @@
 import { QuizQuestion, StudyGuide } from "../types";
 
-async function callServerGemini(action: string, params: any) {
+async function callServerGemini(action: string, params: any, signal?: AbortSignal) {
   try {
     const res = await fetch('/api/gemini/call', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, params })
+      body: JSON.stringify({ action, params }),
+      signal
     });
 
     const text = await res.text();
@@ -193,22 +194,121 @@ export async function simplifyOrRegenerateSection(sectionText: string, instructi
 
 export interface SmartNoteOptions {
   title?: string;
-  sourceType: 'text' | 'camera' | 'images' | 'pdf' | 'youtube';
   textContent?: string;
   files?: Array<{ base64Data: string; mimeType: string; name?: string }>;
+  format: 'Deep Notes' | 'Smart Short Notes' | 'Exam Notes' | 'Concept Notes' | 'Revision Notes' | 'Question-Answer Notes' | 'Handwritten-Style Notes' | 'Last-Minute Notes' | 'Chapter Master Notes' | 'Teaching Notes' | 'Short Notes' | 'Detailed Notes' | string;
+  language: 'English' | 'Hindi' | 'Hinglish' | string;
+  educationLevel?: string;
+  strictSourceOnly?: boolean;
+  provider?: 'auto' | 'gemini' | 'openai' | 'claude' | string;
+  customInstructions?: string;
+  sourceType?: string;
   youtubeUrl?: string;
-  fallbackTranscript?: string;
-  style: 'Short' | 'Detailed' | 'Exam Preparation' | 'Handwritten-Style Text' | 'Revision Notes';
-  language: string;
-  difficulty: 'Easy' | 'Standard' | 'Advanced';
-  format: 'Point-wise Notes' | 'Q&A' | 'Table Format' | 'Mind Map Outline' | 'Flashcards';
-  length: 'Brief' | 'Medium' | 'Comprehensive';
+  style?: string;
+  difficulty?: string;
+  length?: string;
   useGoogleSearch?: boolean;
+  fallbackTranscript?: string;
   signal?: AbortSignal;
 }
 
-export async function generateSmartStudyNotes(options: SmartNoteOptions): Promise<{ title: string; markdown: string; sources?: string[] }> {
-  return callServerGemini('smart_study_notes', { options });
+export async function generateSmartStudyNotes(options: SmartNoteOptions): Promise<{ 
+  title: string; 
+  markdown: string; 
+  format?: string;
+  language?: string;
+  fileCount?: number;
+}> {
+  return callServerGemini('smart_study_notes', { options }, options.signal);
+}
+
+export async function regenerateNoteSection(params: {
+  sectionTitle: string;
+  sectionContent: string;
+  sourceContext?: string;
+  language?: string;
+  instruction?: string;
+  signal?: AbortSignal;
+}): Promise<{ regeneratedContent: string }> {
+  return callServerGemini('regenerate_note_section', params, params.signal);
+}
+
+export interface ConceptMapResult {
+  title: string;
+  centralTopic: string;
+  mermaidCode: string;
+  nodes: Array<{ id: string; label: string; category?: string; description: string }>;
+}
+
+export async function generateConceptMap(params: {
+  noteContent: string;
+  title?: string;
+  language?: string;
+  signal?: AbortSignal;
+}): Promise<ConceptMapResult> {
+  return callServerGemini('concept_map', params, params.signal);
+}
+
+export interface ExamPrepResult {
+  mcqs: Array<{ question: string; options: string[]; correctIndex: number; explanation: string; sourceReference?: string }>;
+  shortAnswers: Array<{ question: string; marks?: number; modelAnswer: string; keyPoints?: string[] }>;
+  longAnswers: Array<{ question: string; marks?: number; structuredSolution: string }>;
+  fillInTheBlanks: Array<{ sentence: string; blankAnswer: string }>;
+}
+
+export async function generateExamPrep(params: {
+  noteContent: string;
+  language?: string;
+  difficulty?: string;
+  signal?: AbortSignal;
+}): Promise<ExamPrepResult> {
+  return callServerGemini('exam_prep', params, params.signal);
+}
+
+export interface QualityReportResult {
+  qualityScore: number;
+  sourceCoveragePercent: number;
+  unsupportedClaimsCount: number;
+  duplicateContentCount: number;
+  verdict: string;
+  strengths: string[];
+  suggestions: string[];
+  warnings?: string[];
+}
+
+export async function generateQualityReport(params: {
+  noteContent: string;
+  sourceContent?: string;
+  language?: string;
+  signal?: AbortSignal;
+}): Promise<QualityReportResult> {
+  return callServerGemini('quality_report', params, params.signal);
+}
+
+export async function executeContextualAction(params: {
+  actionType: 'explain' | 'simplify' | 'example' | 'make_questions' | 'create_flashcards' | 'convert_to_table' | 'make_flowchart' | 'expand' | 'shorten';
+  selectedText: string;
+  fullNoteContext?: string;
+  language?: string;
+  signal?: AbortSignal;
+}): Promise<{ actionType: string; output: string }> {
+  return callServerGemini('contextual_action', params, params.signal);
+}
+
+export async function testConnector(provider: string, apiKey?: string): Promise<{
+  success: boolean;
+  provider: string;
+  status: string;
+  latencyMs?: number;
+  models?: string[];
+  message: string;
+}> {
+  const res = await fetch('/api/connectors/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider, apiKey })
+  });
+  return res.json();
 }
 
 export async function generateAudioOverviewScript(

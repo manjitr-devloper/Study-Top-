@@ -4,8 +4,6 @@ import {
   FileUp, 
   FileText, 
   Camera, 
-  Youtube, 
-  Image as ImageIcon, 
   Sparkles, 
   X, 
   CheckCircle2, 
@@ -14,18 +12,36 @@ import {
   Plus, 
   Layers, 
   BookOpen, 
-  GraduationCap,
-  Trash2,
-  Clock,
-  Check,
-  ShieldCheck,
-  Upload,
-  Globe,
-  Sliders,
-  ChevronRight
+  GraduationCap, 
+  Trash2, 
+  Clock, 
+  Check, 
+  ShieldCheck, 
+  Upload, 
+  Globe, 
+  Sliders, 
+  ChevronRight,
+  Eye,
+  FileCode,
+  Scan,
+  Database,
+  ExternalLink,
+  RotateCcw,
+  History,
+  FileCheck,
+  AlertTriangle,
+  StopCircle,
+  FileQuestion,
+  HelpCircle,
+  Plug
 } from 'lucide-react';
-import { mindClient, MindNoteRequest, MindGeneratedNote } from '../../lib/mindClient';
-import { NotebookSource } from '../../types';
+import { generateSmartStudyNotes, SmartNoteOptions } from '../../lib/gemini';
+import { 
+  processSourceFile, 
+  ProcessedSourceFile, 
+  formatFileSize 
+} from '../../lib/documentParser';
+import { PremiumNotesEditor } from './PremiumNotesEditor';
 import { StudyTopLogo } from '../StudyTopLogo';
 
 interface CreateNotesWorkspaceProps {
@@ -33,838 +49,1134 @@ interface CreateNotesWorkspaceProps {
   onCreateNote: (noteData: { 
     title: string; 
     content: string; 
-    sources?: NotebookSource[]; 
     categoryId?: string;
-    structuredData?: MindGeneratedNote;
+    structuredData?: any;
   }) => void;
+  initialAssignment?: { title: string; content: string; subject?: string } | null;
+  onOpenClassroomHub?: () => void;
+  onOpenConnectorsHub?: () => void;
   language?: string;
 }
 
-interface UploadedFileItem {
-  id: string;
-  name: string;
-  type: 'pdf' | 'image' | 'camera' | 'document' | 'text' | 'youtube';
-  sizeString: string;
-  sizeBytes: number;
-  previewUrl?: string;
-  base64?: string;
-  mimeType?: string;
-  textContent?: string;
-}
-
-interface StageInfo {
-  id: number;
-  name: string;
-  detail: string;
-  minPercent: number;
-  maxPercent: number;
-}
-
-const PIPELINE_STAGES: StageInfo[] = [
-  { id: 1, name: 'Uploading files', detail: 'Uploading your study material...', minPercent: 5, maxPercent: 15 },
-  { id: 2, name: 'Extracting content', detail: 'Extracting content from your files...', minPercent: 15, maxPercent: 30 },
-  { id: 3, name: 'Understanding material', detail: 'MIND 1.0 is understanding your study material...', minPercent: 30, maxPercent: 50 },
-  { id: 4, name: 'Organizing information', detail: 'Organizing chapters and important points...', minPercent: 50, maxPercent: 65 },
-  { id: 5, name: 'Generating notes', detail: 'Generating your point-wise notes...', minPercent: 65, maxPercent: 85 },
-  { id: 6, name: 'Quality verification', detail: 'Checking and improving your notes...', minPercent: 85, maxPercent: 95 },
-  { id: 7, name: 'Final note creation', detail: 'Your notes are ready!', minPercent: 95, maxPercent: 100 }
+const ACADEMIC_SUBJECTS = [
+  'Mathematics', 'Physics', 'Chemistry', 'Biology', 
+  'Computer Science', 'History', 'Geography', 'Political Science', 
+  'Civics', 'Economics', 'English', 'Environmental Science', 
+  'General Knowledge', 'Reasoning'
 ];
+
+const NOTE_FORMATS = [
+  { id: 'Deep Notes', label: 'Deep Notes', desc: 'Comprehensive coverage, step-by-step reasoning & derivations' },
+  { id: 'Smart Short Notes', label: 'Smart Short Notes', desc: 'High-density, high-yield bulleted summary with zero fluff' },
+  { id: 'Exam Notes', label: 'Exam Notes', desc: 'Scoring keys, high-probability exam questions & pitfall alerts' },
+  { id: 'Concept Notes', label: 'Concept Notes', desc: 'Mental models, core principles & conceptual analogies' },
+  { id: 'Revision Notes', label: 'Revision Notes', desc: 'Rapid 5-minute review with memory hooks & summary matrices' },
+  { id: 'Question-Answer Notes', label: 'Question & Answer', desc: 'Full chapter converted into questions with model answers' },
+  { id: 'Handwritten-Style Notes', label: 'Handwritten Style', desc: 'Notebook aesthetics, margin callouts & sketch boxes' },
+  { id: 'Last-Minute Notes', label: 'Last-Minute Sheet', desc: 'Ultra-condensed cheat sheet with formulas, dates & 1-liners' },
+  { id: 'Chapter Master Notes', label: 'Chapter Master', desc: 'Synthesizes all files, merging overlaps & resolving conflicts' },
+  { id: 'Teaching Notes', label: 'Teaching Notes', desc: 'Step-by-step master tutor walkthrough with conceptual checks' }
+];
+
+const EDUCATION_LEVELS = [
+  'High School (Class 9-10)',
+  'Senior Secondary (Class 11-12)',
+  'College / University',
+  'Middle School (Class 6-8)',
+  'Competitive Exams (JEE / NEET / UPSC)'
+];
+
+const LANGUAGES = [
+  { id: 'English', label: 'English', sub: 'Standard Academic' },
+  { id: 'Hindi', label: 'Hindi (हिंदी)', sub: 'Devanagari Script' },
+  { id: 'Hinglish', label: 'Hinglish', sub: 'Roman Hindi' }
+];
+
+interface SavedHistoryNote {
+  id: string;
+  title: string;
+  markdown: string;
+  format: string;
+  language: string;
+  timestamp: number;
+  fileCount: number;
+}
 
 export const CreateNotesWorkspace: React.FC<CreateNotesWorkspaceProps> = ({
   onBack,
   onCreateNote,
+  initialAssignment,
+  onOpenClassroomHub,
+  onOpenConnectorsHub,
   language: initialLang = 'English'
 }) => {
-  // Input Method Tabs
-  const [activeTab, setActiveTab] = useState<'upload' | 'images' | 'camera' | 'documents' | 'paste' | 'youtube'>('upload');
-  
-  // Uploaded Files Collection (Multiple files supported)
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileItem[]>([]);
-  
-  // YouTube and Text Inputs
-  const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
-  const [pastedTextInput, setPastedTextInput] = useState('');
-  
-  // Form Fields
-  const [subject, setSubject] = useState('');
-  const [chapterName, setChapterName] = useState('');
-  const [classLevel, setClassLevel] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Hindi' | 'Hinglish'>('English');
-  const [explanationLevel, setExplanationLevel] = useState<'Simple' | 'Standard' | 'Detailed'>('Standard');
+  // Engine version: Mind 2.0 vs Classic 1.0
+  const [engineVersion, setEngineVersion] = useState<'2.0' | '1.0'>('2.0');
 
-  // Pipeline execution & live progress states
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
-  const [progressPercent, setProgressPercent] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  // Input mode: Files vs Pasted Text
+  const [inputMode, setInputMode] = useState<'files' | 'text'>(
+    initialAssignment ? 'text' : 'files'
+  );
+
+  // Uploaded files list
+  const [sourceFiles, setSourceFiles] = useState<ProcessedSourceFile[]>([]);
+  const [pastedText, setPastedText] = useState(initialAssignment?.content || '');
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Configuration options
+  const [selectedSubject, setSelectedSubject] = useState(initialAssignment?.subject || 'Mathematics');
+  const [chapterTitle, setChapterTitle] = useState(initialAssignment?.title || '');
+  const [selectedFormat, setSelectedFormat] = useState('Deep Notes');
+  const [selectedLanguage, setSelectedLanguage] = useState<'English' | 'Hindi' | 'Hinglish'>('English');
+  const [educationLevel, setEducationLevel] = useState('High School (Class 9-10)');
+  const [strictSourceOnly, setStrictSourceOnly] = useState(true);
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => {
+    return localStorage.getItem('studytop_default_ai_provider') || 'auto';
+  });
+  const [customInstructions, setCustomInstructions] = useState('');
+
+  // 6-Stage Real-time Pipeline state
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStageNumber, setCurrentStageNumber] = useState<number>(1);
+  const [currentStageText, setCurrentStageText] = useState<string>('');
+  const [progressPercent, setProgressPercent] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cancellation controller
-  const cancelRequestedRef = useRef(false);
-  const timerIntervalRef = useRef<any>(null);
-  const progressIntervalRef = useRef<any>(null);
+  // Abort controller ref for cancel button
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // File Inputs Refs
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  // File Inputs
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
 
-  // Supported Extensions Validation
-  const validateFile = (file: File): { valid: boolean; error?: string } => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    const validExts = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'txt', 'docx', 'doc', 'md'];
-    
-    if (!ext || !validExts.includes(ext)) {
-      return { valid: false, error: `Unsupported file format (.${ext}). Supported: PDF, JPG, PNG, WEBP, TXT, DOCX.` };
+  // Preview Modal for individual file
+  const [previewFile, setPreviewFile] = useState<ProcessedSourceFile | null>(null);
+
+  // History Drawer/Modal
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<SavedHistoryNote[]>(() => {
+    try {
+      const stored = localStorage.getItem('studytop_recent_notes_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch (_) {
+      return [];
     }
-    if (file.size === 0) {
-      return { valid: false, error: `File "${file.name}" is empty (0 bytes).` };
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      return { valid: false, error: `File "${file.name}" exceeds the maximum allowed size (25MB).` };
-    }
-    return { valid: true };
+  });
+
+  // Completed Note state (when notes are generated, we render the Premium Editor!)
+  const [generatedNote, setGeneratedNote] = useState<{
+    title: string;
+    markdown: string;
+    format: string;
+    language: string;
+    sourceContext: string;
+  } | null>(null);
+
+  // Sync recent notes to localStorage
+  const saveToRecentHistory = (note: SavedHistoryNote) => {
+    try {
+      const updated = [note, ...recentNotes.filter(n => n.id !== note.id)].slice(0, 15);
+      setRecentNotes(updated);
+      localStorage.setItem('studytop_recent_notes_history', JSON.stringify(updated));
+    } catch (_) {}
   };
 
-  // Convert File to Base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const res = reader.result as string;
-        const base64 = res.split(',')[1] || res;
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  const deleteRecentHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = recentNotes.filter(n => n.id !== id);
+    setRecentNotes(updated);
+    try {
+      localStorage.setItem('studytop_recent_notes_history', JSON.stringify(updated));
+    } catch (_) {}
   };
 
-  // Handle Multi-File Selection
-  const handleFilesAdded = async (filesList: FileList | File[], defaultType?: UploadedFileItem['type']) => {
+  // Handle files selection & extraction
+  const handleFilesSelected = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
     setErrorMessage(null);
-    const files = Array.from(filesList);
-    if (!files.length) return;
 
-    const newItems: UploadedFileItem[] = [];
+    const newlyProcessed: ProcessedSourceFile[] = [];
 
-    for (const file of files) {
-      const validation = validateFile(file);
-      if (!validation.valid) {
-        setErrorMessage(validation.error || 'Invalid file uploaded.');
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      if (file.size > 30 * 1024 * 1024) {
+        setErrorMessage(`"${file.name}" exceeds the 30MB limit.`);
         continue;
       }
-
-      let type: UploadedFileItem['type'] = defaultType || 'document';
-      if (file.type.includes('pdf')) type = 'pdf';
-      else if (file.type.includes('image')) type = 'image';
-      else if (file.name.endsWith('.txt') || file.name.endsWith('.md')) type = 'text';
-
-      let previewUrl: string | undefined = undefined;
-      let base64: string | undefined = undefined;
-      let textContent: string | undefined = undefined;
-
-      if (type === 'image' || type === 'camera') {
-        previewUrl = URL.createObjectURL(file);
-        base64 = await fileToBase64(file);
-      } else if (type === 'text') {
-        textContent = await file.text();
-      } else if (type === 'pdf') {
-        base64 = await fileToBase64(file);
+      try {
+        const processed = await processSourceFile(file, [...sourceFiles, ...newlyProcessed]);
+        newlyProcessed.push(processed);
+      } catch (err: any) {
+        console.error('File processing error:', err);
       }
-
-      newItems.push({
-        id: `file_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        name: file.name,
-        type,
-        sizeString: `${Math.round(file.size / 1024)} KB`,
-        sizeBytes: file.size,
-        previewUrl,
-        base64,
-        mimeType: file.type || (type === 'pdf' ? 'application/pdf' : 'image/jpeg'),
-        textContent
-      });
     }
 
-    if (newItems.length > 0) {
-      setUploadedFiles(prev => [...prev, ...newItems]);
-      // Auto-populate chapter/subject if empty
-      if (!chapterName && newItems[0]) {
-        const cleanName = newItems[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-        setChapterName(cleanName);
+    if (newlyProcessed.length > 0) {
+      setSourceFiles(prev => [...prev, ...newlyProcessed]);
+      // Auto-set title from first file if blank
+      if (!chapterTitle) {
+        const cleanName = newlyProcessed[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        setChapterTitle(cleanName);
       }
     }
   };
 
-  // Remove File from selection
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await handleFilesSelected(e.dataTransfer.files);
+    }
+  };
+
   const removeFile = (id: string) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== id));
+    setSourceFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  // Add YouTube Source
-  const handleAddYouTube = () => {
-    if (!youtubeUrlInput.trim()) return;
-    const url = youtubeUrlInput.trim();
-    if (!url.includes('youtube.com') && !url.includes('youtu.be')) {
-      setErrorMessage('Please enter a valid YouTube video URL.');
-      return;
-    }
-
-    const newItem: UploadedFileItem = {
-      id: `yt_${Date.now()}`,
-      name: `YouTube Resource: ${url.substring(0, 40)}...`,
-      type: 'youtube',
-      sizeString: 'Online Link',
-      sizeBytes: 0,
-      textContent: `YouTube Resource Video URL: ${url}`
-    };
-    setUploadedFiles(prev => [...prev, newItem]);
-    setYoutubeUrlInput('');
-    setErrorMessage(null);
-  };
-
-  // Add Pasted Text Source
-  const handleAddPastedText = () => {
-    if (!pastedTextInput.trim()) return;
-    const firstLine = pastedTextInput.trim().split('\n')[0].substring(0, 35);
-    const newItem: UploadedFileItem = {
-      id: `txt_${Date.now()}`,
-      name: firstLine ? `Notes: ${firstLine}...` : 'Pasted Text Notes',
-      type: 'text',
-      sizeString: `${Math.round(pastedTextInput.length / 1024)} KB`,
-      sizeBytes: pastedTextInput.length,
-      textContent: pastedTextInput.trim()
-    };
-    setUploadedFiles(prev => [...prev, newItem]);
-    setPastedTextInput('');
-    setErrorMessage(null);
-  };
-
-  // Safe Cancel Generation
+  // Cancel Notes Generation
   const handleCancelGeneration = () => {
-    cancelRequestedRef.current = true;
-    clearInterval(timerIntervalRef.current);
-    clearInterval(progressIntervalRef.current);
-    setIsGenerating(false);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsProcessing(false);
     setProgressPercent(0);
-    setErrorMessage('Note generation cancelled by student.');
+    setCurrentStageText('Generation cancelled.');
   };
 
-  // Start Real MIND 1.0 Note Generation Pipeline
-  const handleStartGeneration = async () => {
+  // Execute AI Notes Generation
+  const handleGenerateNotes = async () => {
     setErrorMessage(null);
-    cancelRequestedRef.current = false;
 
     // Validate inputs
-    if (uploadedFiles.length === 0 && !subject.trim() && !chapterName.trim()) {
-      setErrorMessage('Please upload a file, paste study text, or provide a subject and chapter name.');
+    const hasFiles = sourceFiles.length > 0;
+    const hasText = pastedText.trim().length > 0;
+
+    if (!hasFiles && !hasText) {
+      setErrorMessage('Please upload at least one document/image or paste lecture/textbook text.');
       return;
     }
 
-    setIsGenerating(true);
-    setCurrentStageIndex(0);
-    setProgressPercent(5);
-    setElapsedSeconds(0);
+    // Build source text representation for context
+    const extractedFileTexts = sourceFiles
+      .filter(f => f.extractedText)
+      .map(f => `--- File: ${f.name} ---\n${f.extractedText}`)
+      .join('\n\n');
 
-    // Start elapsed seconds timer
-    const startTime = Date.now();
-    timerIntervalRef.current = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
+    const combinedSourceContext = [
+      pastedText ? `--- Provided Text Content ---\n${pastedText}` : '',
+      extractedFileTexts
+    ].filter(Boolean).join('\n\n');
 
-    // Progress simulation matching actual pipeline progression
-    let currentPct = 5;
-    progressIntervalRef.current = setInterval(() => {
-      if (cancelRequestedRef.current) return;
-      currentPct = Math.min(currentPct + 1, 92);
-      setProgressPercent(currentPct);
+    // Setup abort controller
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-      // Advance stage according to percent
-      const stageIdx = PIPELINE_STAGES.findIndex(s => currentPct >= s.minPercent && currentPct < s.maxPercent);
-      if (stageIdx !== -1) {
-        setCurrentStageIndex(stageIdx);
-      }
-    }, 450);
+    setIsProcessing(true);
+    setProgressPercent(15);
+    setCurrentStageNumber(1);
+    setCurrentStageText('Stage 1/4: Analyzing source content & concepts...');
+
+    // Fast dynamic progress ticker
+    const progressInterval = setInterval(() => {
+      setProgressPercent(prev => {
+        if (prev < 40) return prev + 15;
+        if (prev < 75) return prev + 10;
+        if (prev < 90) return prev + 5;
+        return prev;
+      });
+    }, 250);
 
     try {
-      // 1. Gather text context and images
-      let aggregatedText = '';
-      const imagesPayload: { base64: string; mimeType: string; name?: string }[] = [];
-      const notebookSources: NotebookSource[] = [];
+      // Gather files for inline Gemini multimodal payload (PDFs and Images)
+      // SPEED OPTIMIZATION: Only pass heavy base64 data if text wasn't already extracted
+      const hasExtractedText = combinedSourceContext.trim().length > 60;
+      const filesPayload = !hasExtractedText
+        ? sourceFiles
+            .filter(f => f.base64Data && (f.type === 'pdf' || f.type === 'image' || f.type === 'camera'))
+            .slice(0, 3)
+            .map(f => ({
+              base64Data: f.base64Data!,
+              mimeType: f.mimeType,
+              name: f.name
+            }))
+        : [];
 
-      for (const item of uploadedFiles) {
-        if (item.textContent) {
-          aggregatedText += `\n\n--- Source: ${item.name} ---\n${item.textContent}\n`;
-        }
-        if (item.base64 && (item.type === 'image' || item.type === 'camera')) {
-          imagesPayload.push({
-            base64: item.base64,
-            mimeType: item.mimeType || 'image/jpeg',
-            name: item.name
-          });
-        }
-        notebookSources.push({
-          id: item.id,
-          title: item.name,
-          type: item.type === 'image' || item.type === 'camera' ? 'image' : (item.type === 'youtube' ? 'youtube' : 'text'),
-          content: item.textContent || item.name,
-          selected: true,
-          dateAdded: Date.now(),
-          size: item.sizeString
-        });
-      }
+      const noteTitle = chapterTitle.trim() || sourceFiles[0]?.name.replace(/\.[^/.]+$/, '') || 'Academic Study Notes';
 
-      if (subject.trim()) {
-        aggregatedText += `\n\nSubject: ${subject.trim()}\n`;
-      }
-      if (chapterName.trim()) {
-        aggregatedText += `Chapter/Topic Focus: ${chapterName.trim()}\n`;
-      }
-      if (classLevel.trim()) {
-        aggregatedText += `Target Grade/Class Level: ${classLevel.trim()}\n`;
-      }
-
-      // 2. Call MIND 1.0 Note-Making Engine
-      const payload: MindNoteRequest = {
-        sourceType: uploadedFiles[0]?.type || 'topic',
-        content: aggregatedText.trim() || undefined,
-        imageBase64: imagesPayload[0]?.base64,
-        imageMimeType: imagesPayload[0]?.mimeType,
-        images: imagesPayload.length > 1 ? imagesPayload : undefined,
-        title: chapterName.trim() || uploadedFiles[0]?.name?.replace(/\.[^/.]+$/, '') || 'Comprehensive Study Notes',
-        subject: subject.trim() || 'General Studies',
-        chapter: chapterName.trim(),
-        classLevel: classLevel.trim(),
+      const optionsPayload: SmartNoteOptions = {
+        title: noteTitle,
+        textContent: combinedSourceContext,
+        files: filesPayload,
+        format: selectedFormat,
         language: selectedLanguage,
-        explanationLevel
+        educationLevel,
+        strictSourceOnly,
+        provider: selectedProvider,
+        customInstructions: customInstructions.trim(),
+        signal: controller.signal
       };
 
-      const generatedNote = await mindClient.generateNotes(payload);
+      const result = await generateSmartStudyNotes(optionsPayload);
 
-      if (cancelRequestedRef.current) return;
+      clearInterval(progressInterval);
 
-      // Stage 7: Final Completion
-      setCurrentStageIndex(6);
       setProgressPercent(100);
+      setCurrentStageNumber(4);
+      setCurrentStageText('Completed in seconds! Opening document editor...');
 
-      clearInterval(timerIntervalRef.current);
-      clearInterval(progressIntervalRef.current);
+      // Save to recent notes history
+      const savedItem: SavedHistoryNote = {
+        id: `note_${Date.now()}`,
+        title: result.title || noteTitle,
+        markdown: result.markdown,
+        format: selectedFormat,
+        language: selectedLanguage,
+        timestamp: Date.now(),
+        fileCount: sourceFiles.length
+      };
+      saveToRecentHistory(savedItem);
 
-      // Brief transition to celebrate completion
+      // Brief pause to show completion then switch to Premium Editor
       setTimeout(() => {
-        onCreateNote({
-          title: generatedNote.chapterTitle || chapterName || 'MIND 1.0 Study Notes',
-          content: generatedNote.markdownOutput,
-          sources: notebookSources.length > 0 ? notebookSources : undefined,
-          categoryId: (subject.toLowerCase().includes('math') ? 'math' : (subject.toLowerCase().includes('science') ? 'science' : 'all')),
-          structuredData: generatedNote
+        setIsProcessing(false);
+        abortControllerRef.current = null;
+        setGeneratedNote({
+          title: result.title || noteTitle,
+          markdown: result.markdown,
+          format: selectedFormat,
+          language: selectedLanguage,
+          sourceContext: combinedSourceContext
         });
-      }, 700);
+      }, 500);
 
     } catch (err: any) {
-      console.error('[MIND 1.0] Generation Pipeline Error:', err);
-      clearInterval(timerIntervalRef.current);
-      clearInterval(progressIntervalRef.current);
-      setIsGenerating(false);
-      setErrorMessage(err.message || 'MIND 1.0 note generation failed. Please verify your inputs and retry.');
+      clearInterval(progressInterval);
+      setIsProcessing(false);
+      abortControllerRef.current = null;
+
+      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        setCurrentStageText('Generation was cancelled.');
+        return;
+      }
+
+      console.error('Notes Generation Failure:', err);
+      setErrorMessage(
+        err.message || 'AI notes generation failed. Please check your network connection and try again.'
+      );
     }
   };
 
+  // If a note has been generated, show the Premium Notes Editor directly!
+  if (generatedNote) {
+    return (
+      <PremiumNotesEditor
+        initialTitle={generatedNote.title}
+        initialContent={generatedNote.markdown}
+        sourceContext={generatedNote.sourceContext}
+        format={generatedNote.format}
+        language={generatedNote.language}
+        onSaveToLibrary={(note) => {
+          onCreateNote({
+            title: note.title,
+            content: note.content,
+            categoryId: selectedSubject.toLowerCase().includes('math') ? 'math' : 'science'
+          });
+        }}
+        onBackToGenerator={() => setGeneratedNote(null)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans text-slate-900 pb-24 selection:bg-blue-100">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none text-slate-900">
       
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs px-4 sm:px-8 py-4 flex items-center justify-between">
+      {/* Top Bar */}
+      <header className="bg-white border-b border-slate-200/90 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
-            title="Return to Dashboard"
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer flex items-center gap-1.5 font-bold text-xs"
+            title="Return to Study Top Dashboard"
           >
             <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
           </button>
-          <div className="flex items-center gap-3">
-            <StudyTopLogo size="sm" variant="icon" />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-black uppercase tracking-wider">
-                  MIND 1.0 Engine
-                </span>
-                <span className="text-xs text-slate-400 font-medium hidden sm:inline">Automatic Point-Wise Creation</span>
-              </div>
-              <h1 className="text-base sm:text-xl font-black text-slate-900">
-                AI Note Maker
-              </h1>
+
+          <div className="h-5 w-px bg-slate-200" />
+
+          <div className="flex items-center gap-2">
+            <StudyTopLogo size="sm" showTagline={false} />
+            
+            {/* Version Switcher: 2.0 vs 1.0 */}
+            <div className="hidden sm:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setEngineVersion('2.0')}
+                className={`px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1 ${
+                  engineVersion === '2.0' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Mind 2.0 + Gemini Intelligent Notes Engine"
+              >
+                <Sparkles className="w-3 h-3 text-blue-600" />
+                <span>Mind 2.0</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEngineVersion('1.0')}
+                className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                  engineVersion === '1.0' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Study Top 1.0 Classic Notes Maker"
+              >
+                <span>Classic 1.0</span>
+              </button>
             </div>
           </div>
         </div>
 
+        {/* Right Header: Connectors Hub, Classroom & History */}
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-black">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>MIND 1.0 Active</span>
-          </div>
+          {onOpenConnectorsHub && (
+            <button
+              onClick={onOpenConnectorsHub}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 text-xs font-bold transition cursor-pointer"
+              title="Universal AI Connectors Hub"
+            >
+              <Plug className="w-3.5 h-3.5 text-purple-600" />
+              <span className="hidden md:inline">Connectors Hub</span>
+            </button>
+          )}
+
+          {onOpenClassroomHub && (
+            <button
+              onClick={onOpenClassroomHub}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold transition cursor-pointer"
+              title="Import coursework from Google Classroom"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden md:inline">Classroom</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer"
+            title="View recent notes generation history"
+          >
+            <History className="w-3.5 h-3.5 text-slate-600" />
+            <span className="hidden sm:inline">History</span>
+            {recentNotes.length > 0 && (
+              <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">
+                {recentNotes.length}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
-        
-        {/* Subtitle Banner */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-3xl p-6 sm:p-8 shadow-md relative overflow-hidden">
-          <div className="relative z-10 space-y-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider">
-              Intelligent Study Assistant
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Transform your study materials into intelligent, organized notes.
-            </h2>
-            <p className="text-xs sm:text-sm text-blue-100 max-w-2xl leading-relaxed font-medium">
-              Upload textbook pages, PDFs, lecture slides, or photos. MIND 1.0 automatically extracts concepts, formats point-wise explanations, verifies formulas, and generates complete exam-ready notes.
-            </p>
+      {/* Hero Headline */}
+      <div className="bg-gradient-to-b from-white to-slate-50 border-b border-slate-200/80 px-4 sm:px-6 py-6 text-center">
+        <div className="max-w-3xl mx-auto space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold">
+            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+            <span>100% Strict Source Grounding • Zero Hallucination</span>
           </div>
-          <div className="absolute -right-10 -bottom-10 w-52 h-52 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Advanced AI Notes Generator
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto leading-relaxed">
+            Upload your textbooks, lecture PDFs, slides, or photos. Our AI synthesizes structured, high-yield academic notes strictly from your uploaded files.
+          </p>
         </div>
+      </div>
 
-        {/* Error Feedback Banner */}
+      {/* Main Studio Workspace Grid */}
+      <div className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        
+        {/* Error Alert with Retry */}
         {errorMessage && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-start gap-2.5 shadow-2xs">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <span className="flex-1 leading-relaxed">{errorMessage}</span>
-            <button onClick={() => setErrorMessage(null)} className="text-rose-500 hover:text-rose-700">
-              <X className="w-4 h-4" />
-            </button>
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-2 animate-in fade-in">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div className="space-y-1 flex-1">
+                <div className="font-bold text-rose-900">Notes Generation Issue</div>
+                <p className="text-rose-700 leading-relaxed text-[11px]">{errorMessage}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-rose-200/60 text-[11px]">
+              <span className="text-rose-600 font-medium">Your uploaded files and settings remain safely preserved.</span>
+              <button
+                type="button"
+                onClick={handleGenerateNotes}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition cursor-pointer flex items-center gap-1"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Retry Generation</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* =========================================================================
-            LIVE 7-STAGE PIPELINE PROGRESS DISPLAY (When generating)
-            ========================================================================= */}
-        {isGenerating ? (
-          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-lg space-y-6">
-            
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200/80 p-2 flex items-center justify-center mx-auto shadow-md animate-pulse">
-                <StudyTopLogo size="md" variant="icon" />
+        {/* 6-Stage Progress Pipeline Modal / Banner when Generating */}
+        {isProcessing && (
+          <div className="bg-white border-2 border-blue-500 rounded-3xl p-6 shadow-xl space-y-4 animate-in fade-in">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">{currentStageText}</h3>
+                  <p className="text-[11px] text-slate-500">Checking sources, parsing formulas &amp; structuring sections...</p>
+                </div>
               </div>
-              <span className="text-xs font-black uppercase tracking-wider text-blue-600 block">
-                MIND 1.0 Note Pipeline Active
-              </span>
-              <h3 className="text-2xl font-black text-slate-900">
-                Creating Your Study Notes
-              </h3>
-              <p className="text-xs text-slate-500 font-medium">
-                Currently: <strong className="text-slate-800">{PIPELINE_STAGES[currentStageIndex]?.detail}</strong>
-              </p>
+
+              {/* Working Cancel Button */}
+              <button
+                type="button"
+                onClick={handleCancelGeneration}
+                className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                title="Cancel the ongoing notes generation request"
+              >
+                <StopCircle className="w-3.5 h-3.5 text-rose-600" />
+                <span>Cancel</span>
+              </button>
             </div>
 
-            {/* Overall Progress Bar */}
-            <div className="space-y-2 max-w-xl mx-auto">
-              <div className="flex items-center justify-between text-xs font-black">
-                <span className="text-slate-600">Stage {currentStageIndex + 1} of 7: {PIPELINE_STAGES[currentStageIndex]?.name}</span>
-                <span className="text-blue-600 font-mono text-sm">{progressPercent}%</span>
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-bold text-blue-900">
+                <span>Pipeline Stage {currentStageNumber} of 6</span>
+                <span>{progressPercent}%</span>
               </div>
-              
-              <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+              <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300 shadow-xs"
+                  className="h-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-full transition-all duration-300"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium pt-1">
-                <span>Elapsed time: {elapsedSeconds}s</span>
-                <span>MIND 1.0 • Gemini AI Intelligence</span>
-              </div>
             </div>
 
-            {/* 7-Stage Visual Roadmap */}
-            <div className="max-w-xl mx-auto border border-slate-100 rounded-2xl p-4 bg-slate-50/70 space-y-2.5">
-              {PIPELINE_STAGES.map((stg, idx) => {
-                const isPassed = currentStageIndex > idx;
-                const isCurrent = currentStageIndex === idx;
-
+            {/* 6 Stage Chips */}
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-2">
+              {[
+                '1. Uploaded',
+                '2. Parsing',
+                '3. Structuring',
+                '4. Notes Gen',
+                '5. Source Check',
+                '6. Finalize'
+              ].map((stageLabel, idx) => {
+                const isPassed = currentStageNumber > idx + 1;
+                const isCurrent = currentStageNumber === idx + 1;
                 return (
-                  <div key={stg.id} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5">
-                      {isPassed ? (
-                        <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </div>
-                      ) : isCurrent ? (
-                        <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 animate-spin">
-                          <Loader2 className="w-3 h-3" />
-                        </div>
-                      ) : (
-                        <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
-                          {stg.id}
-                        </div>
-                      )}
-
-                      <span className={`font-bold ${isCurrent ? 'text-blue-900 font-black' : (isPassed ? 'text-slate-800' : 'text-slate-400')}`}>
-                        {stg.name}
-                      </span>
-                    </div>
-
-                    <span className="text-[11px] text-slate-400 font-mono">
-                      {isPassed ? 'Completed' : (isCurrent ? 'In progress...' : 'Queued')}
-                    </span>
+                  <div
+                    key={stageLabel}
+                    className={`px-2 py-1.5 rounded-xl text-[10px] font-bold text-center border transition-all ${
+                      isPassed
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : isCurrent
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                        : 'bg-slate-50 border-slate-200 text-slate-400'
+                    }`}
+                  >
+                    {isPassed ? '✓ ' : ''}{stageLabel}
                   </div>
                 );
               })}
             </div>
-
-            {/* Safe Cancellation Button */}
-            <div className="flex justify-center pt-2">
-              <button
-                type="button"
-                onClick={handleCancelGeneration}
-                className="px-5 py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer flex items-center gap-1.5"
-              >
-                <X className="w-4 h-4 text-slate-500" />
-                <span>Cancel Generation</span>
-              </button>
-            </div>
-
-          </div>
-        ) : (
-          /* =========================================================================
-              NOTE MAKER INPUTS & FILE UPLOAD CARDS
-              ========================================================================= */
-          <div className="space-y-6">
-            
-            {/* 1. SOURCE SELECTOR TABS */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs space-y-4">
-              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
-                Select Source Type
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-                {[
-                  { id: 'upload', label: 'Upload PDF', icon: FileUp, color: 'text-rose-600 bg-rose-50' },
-                  { id: 'images', label: 'Upload Images', icon: ImageIcon, color: 'text-blue-600 bg-blue-50' },
-                  { id: 'camera', label: 'Take Photo', icon: Camera, color: 'text-amber-600 bg-amber-50' },
-                  { id: 'documents', label: 'Upload Docs', icon: FileText, color: 'text-indigo-600 bg-indigo-50' },
-                  { id: 'paste', label: 'Paste Text', icon: BookOpen, color: 'text-emerald-600 bg-emerald-50' },
-                  { id: 'youtube', label: 'YouTube Link', icon: Youtube, color: 'text-red-600 bg-red-50' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id as any)}
-                    className={`p-3.5 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-2 ${
-                      activeTab === item.id 
-                        ? 'border-blue-500 bg-blue-50/50 ring-2 ring-blue-500/20' 
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${item.color}`}>
-                      <item.icon className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800 leading-tight">
-                      {item.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Dynamic Tab Panels */}
-              <div className="pt-2 border-t border-slate-100">
-                
-                {/* PDF Upload */}
-                {activeTab === 'upload' && (
-                  <div 
-                    onClick={() => pdfInputRef.current?.click()}
-                    className="p-8 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20 space-y-2"
-                  >
-                    <FileUp className="w-10 h-10 text-blue-600 mx-auto" />
-                    <h4 className="text-sm font-extrabold text-slate-900">Click to upload PDF textbooks or lecture notes</h4>
-                    <p className="text-xs text-slate-400">Supported: PDF files up to 25MB • Multiple files allowed</p>
-                    <input 
-                      type="file" 
-                      ref={pdfInputRef} 
-                      accept=".pdf" 
-                      multiple 
-                      onChange={(e) => e.target.files && handleFilesAdded(e.target.files, 'pdf')} 
-                      className="hidden" 
-                    />
-                  </div>
-                )}
-
-                {/* Images Upload */}
-                {activeTab === 'images' && (
-                  <div 
-                    onClick={() => imageInputRef.current?.click()}
-                    className="p-8 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20 space-y-2"
-                  >
-                    <ImageIcon className="w-10 h-10 text-blue-600 mx-auto" />
-                    <h4 className="text-sm font-extrabold text-slate-900">Upload multiple textbook or notebook images</h4>
-                    <p className="text-xs text-slate-400">Supported: JPG, JPEG, PNG, WEBP • Optical Character Recognition enabled</p>
-                    <input 
-                      type="file" 
-                      ref={imageInputRef} 
-                      accept="image/*" 
-                      multiple 
-                      onChange={(e) => e.target.files && handleFilesAdded(e.target.files, 'image')} 
-                      className="hidden" 
-                    />
-                  </div>
-                )}
-
-                {/* Camera Snap */}
-                {activeTab === 'camera' && (
-                  <div 
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="p-8 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20 space-y-2"
-                  >
-                    <Camera className="w-10 h-10 text-amber-600 mx-auto" />
-                    <h4 className="text-sm font-extrabold text-slate-900">Take a photo of a textbook page or blackboard</h4>
-                    <p className="text-xs text-slate-400">Uses mobile or device camera • Instant OCR analysis</p>
-                    <input 
-                      type="file" 
-                      ref={cameraInputRef} 
-                      accept="image/*" 
-                      capture="environment" 
-                      onChange={(e) => e.target.files && handleFilesAdded(e.target.files, 'camera')} 
-                      className="hidden" 
-                    />
-                  </div>
-                )}
-
-                {/* Documents Upload */}
-                {activeTab === 'documents' && (
-                  <div 
-                    onClick={() => docInputRef.current?.click()}
-                    className="p-8 border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-2xl text-center cursor-pointer transition bg-slate-50/50 hover:bg-blue-50/20 space-y-2"
-                  >
-                    <FileText className="w-10 h-10 text-indigo-600 mx-auto" />
-                    <h4 className="text-sm font-extrabold text-slate-900">Upload Word documents, TXT, or Markdown</h4>
-                    <p className="text-xs text-slate-400">Supported: DOCX, TXT, MD • Structured chapter extraction</p>
-                    <input 
-                      type="file" 
-                      ref={docInputRef} 
-                      accept=".docx,.doc,.txt,.md" 
-                      multiple 
-                      onChange={(e) => e.target.files && handleFilesAdded(e.target.files, 'document')} 
-                      className="hidden" 
-                    />
-                  </div>
-                )}
-
-                {/* Paste Text */}
-                {activeTab === 'paste' && (
-                  <div className="space-y-3">
-                    <textarea
-                      rows={5}
-                      value={pastedTextInput}
-                      onChange={(e) => setPastedTextInput(e.target.value)}
-                      placeholder="Paste your study notes, essay draft, syllabus topics, or article paragraphs here..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:bg-white focus:border-blue-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddPastedText}
-                      disabled={!pastedTextInput.trim()}
-                      className="px-4 py-2 bg-slate-900 hover:bg-black text-white font-bold text-xs rounded-xl transition cursor-pointer disabled:opacity-50"
-                    >
-                      Attach Pasted Text as Source
-                    </button>
-                  </div>
-                )}
-
-                {/* YouTube Video URL */}
-                {activeTab === 'youtube' && (
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="url"
-                        value={youtubeUrlInput}
-                        onChange={(e) => setYoutubeUrlInput(e.target.value)}
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs sm:text-sm font-medium text-slate-900 outline-none focus:bg-white focus:border-red-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddYouTube}
-                        disabled={!youtubeUrlInput.trim()}
-                        className="px-5 py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl transition cursor-pointer disabled:opacity-50"
-                      >
-                        Add Video
-                      </button>
-                    </div>
-                    <p className="text-[11px] text-slate-400">MIND 1.0 will analyze the video curriculum and lecture transcript.</p>
-                  </div>
-                )}
-
-              </div>
-            </div>
-
-            {/* 2. UPLOADED FILES LIST & REMOVAL CONTROLS */}
-            {uploadedFiles.length > 0 && (
-              <div className="bg-white rounded-3xl border border-slate-200/90 p-5 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Uploaded Sources ({uploadedFiles.length})</span>
-                  </h4>
-                  <button
-                    onClick={() => setUploadedFiles([])}
-                    className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
-                  >
-                    Clear All
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {uploadedFiles.map(file => (
-                    <div 
-                      key={file.id} 
-                      className="p-3 rounded-2xl border border-slate-200/90 bg-slate-50/50 flex items-center justify-between gap-3 shadow-2xs"
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        {file.previewUrl ? (
-                          <img src={file.previewUrl} alt="Thumbnail" className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                            {file.type === 'pdf' ? <FileUp className="w-5 h-5 text-rose-600" /> : <FileText className="w-5 h-5" />}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-900 truncate">{file.name}</p>
-                          <span className="text-[10px] text-slate-400 font-medium uppercase">{file.type} • {file.sizeString}</span>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => removeFile(file.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
-                        title="Remove Source"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 3. METADATA & CONFIGURATION FIELDS */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs space-y-4">
-              <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <Sliders className="w-4 h-4 text-blue-600" />
-                <span>Note Customization Options</span>
-              </h4>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Subject */}
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="e.g., Physics, Biology, History..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Chapter Name */}
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    Chapter Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={chapterName}
-                    onChange={(e) => setChapterName(e.target.value)}
-                    placeholder="e.g., Force and Pressure"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-blue-500"
-                  />
-                </div>
-
-                {/* Class / Grade */}
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    Class / Grade (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={classLevel}
-                    onChange={(e) => setClassLevel(e.target.value)}
-                    placeholder="e.g., Class 10 / High School"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                {/* Language Option */}
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    Note Language
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['English', 'Hindi', 'Hinglish'] as const).map(langOpt => (
-                      <button
-                        key={langOpt}
-                        type="button"
-                        onClick={() => setSelectedLanguage(langOpt)}
-                        className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer text-center ${
-                          selectedLanguage === langOpt 
-                            ? 'bg-blue-50 border-blue-400 text-blue-700 ring-1 ring-blue-400' 
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'
-                        }`}
-                      >
-                        {langOpt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Explanation Level */}
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-1.5">
-                    Explanation Level
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['Simple', 'Standard', 'Detailed'] as const).map(lvl => (
-                      <button
-                        key={lvl}
-                        type="button"
-                        onClick={() => setExplanationLevel(lvl)}
-                        className={`py-2 px-3 rounded-xl border text-xs font-bold transition cursor-pointer text-center ${
-                          explanationLevel === lvl 
-                            ? 'bg-indigo-50 border-indigo-400 text-indigo-700 ring-1 ring-indigo-400' 
-                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-white'
-                        }`}
-                      >
-                        {lvl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* 4. PRIMARY GENERATE BUTTON */}
-            <button
-              type="button"
-              onClick={handleStartGeneration}
-              disabled={uploadedFiles.length === 0 && !subject.trim() && !chapterName.trim()}
-              className="w-full py-4 px-8 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-sm tracking-wide shadow-xl shadow-blue-600/25 transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
-            >
-              <Sparkles className="w-5 h-5 text-amber-300" />
-              <span>Generate Notes with MIND 1.0</span>
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </button>
-
           </div>
         )}
 
+        {/* Input Grid: Left = Upload/Input, Right = Customization Settings */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Column: Upload Hub (Col 7) */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xs space-y-5">
+              
+              {/* Mode Toggle: Files vs Text */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('files')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                      inputMode === 'files'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileUp className="w-3.5 h-3.5" />
+                    <span>Upload Documents &amp; Photos</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInputMode('text')}
+                    className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
+                      inputMode === 'text'
+                        ? 'bg-white text-blue-700 shadow-2xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Paste Text</span>
+                  </button>
+                </div>
+
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {sourceFiles.length} file{sourceFiles.length !== 1 ? 's' : ''} attached
+                </span>
+              </div>
+
+              {/* Mode 1: Files Upload & Drag/Drop */}
+              {inputMode === 'files' && (
+                <div className="space-y-4">
+                  {/* Drag and Drop Zone */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition space-y-3 ${
+                      isDragging 
+                        ? 'border-blue-600 bg-blue-50/50 scale-[1.01]' 
+                        : 'border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
+                      <FileUp className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-bold text-slate-900">
+                        Drag &amp; drop textbook files or click to browse
+                      </div>
+                      <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                        Supports PDF, DOCX, TXT, PPTX &amp; Images (PNG, JPG, WEBP) up to 30MB each
+                      </p>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fileInputRef.current?.click();
+                        }}
+                        className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Browse Files</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cameraInputRef.current?.click();
+                        }}
+                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer border border-slate-200"
+                        title="Take a live photo of a textbook or notebook page"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Camera Snap</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.txt,.md,.rtf,.csv,.pptx,.ppt,image/*"
+                    multiple
+                    onChange={(e) => handleFilesSelected(e.target.files)}
+                    className="hidden"
+                  />
+
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleFilesSelected(e.target.files)}
+                    className="hidden"
+                  />
+
+                  {/* Attached Files Shelf */}
+                  {sourceFiles.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Uploaded Documents ({sourceFiles.length})</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setSourceFiles([])}
+                          className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {sourceFiles.map((file) => (
+                          <div
+                            key={file.id}
+                            className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2 ${
+                              file.isDuplicate
+                                ? 'bg-amber-50/70 border-amber-200'
+                                : 'bg-slate-50 border-slate-200 hover:bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              {file.previewUrl ? (
+                                <img
+                                  src={file.previewUrl}
+                                  alt={file.name}
+                                  className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                              )}
+                              <div className="truncate text-left">
+                                <div className="text-xs font-bold text-slate-800 truncate" title={file.name}>
+                                  {file.name}
+                                </div>
+                                <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                  <span>{file.sizeFormatted}</span>
+                                  <span>•</span>
+                                  <span className="uppercase">{file.type}</span>
+                                  {file.isDuplicate && (
+                                    <span className="text-amber-700 font-bold ml-1">
+                                      Duplicate
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewFile(file)}
+                                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                                title="Preview extracted content"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeFile(file.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                                title="Remove file"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Mode 2: Pasted Text */}
+              {inputMode === 'text' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Paste Study Excerpt, Notes, or Lecture Text</span>
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {pastedText.length} characters
+                    </span>
+                  </div>
+                  <textarea
+                    value={pastedText}
+                    onChange={(e) => setPastedText(e.target.value)}
+                    placeholder="Paste textbook sections, lecture notes, syllabus concepts or assignment questions here. The AI will strictly synthesize notes only from this content."
+                    rows={11}
+                    className="w-full p-4 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:border-blue-500 focus:bg-white outline-none transition leading-relaxed resize-y"
+                  />
+                  {pastedText && (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setPastedText('')}
+                        className="text-xs text-rose-600 hover:underline"
+                      >
+                        Clear text
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Strict Source Guarantee Footer */}
+              <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 flex items-start gap-2.5 text-xs text-blue-900">
+                <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5 leading-relaxed text-[11px]">
+                  <span className="font-bold">Zero-Hallucination Academic Standard:</span>
+                  <p className="text-blue-800">
+                    The engine operates in strict closed-world mode. No external web facts or synthetic assumptions will be injected. If a concept is missing from your material, it will not be fabricated.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Right Column: Customization & Launch Controls (Col 5) */}
+          <div className="lg:col-span-5 space-y-4">
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 shadow-2xs space-y-4">
+              
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-blue-600" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                    Customization Controls
+                  </h3>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                  9 Academic Sections
+                </span>
+              </div>
+
+              {/* Subject & Education Level */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Academic Subject</label>
+                  <select
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none cursor-pointer"
+                  >
+                    {ACADEMIC_SUBJECTS.map(subj => (
+                      <option key={subj} value={subj}>{subj}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Education Level</label>
+                  <select
+                    value={educationLevel}
+                    onChange={(e) => setEducationLevel(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none cursor-pointer"
+                  >
+                    {EDUCATION_LEVELS.map(lvl => (
+                      <option key={lvl} value={lvl}>{lvl}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* AI Engine & Strict Source Mode */}
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    <span>AI Provider Engine</span>
+                  </label>
+                  {onOpenConnectorsHub && (
+                    <button
+                      type="button"
+                      onClick={onOpenConnectorsHub}
+                      className="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+                    >
+                      Configure Connectors
+                    </button>
+                  )}
+                </div>
+
+                <select
+                  value={selectedProvider}
+                  onChange={(e) => setSelectedProvider(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 cursor-pointer"
+                >
+                  <option value="auto">Study Top Auto (Mind 2.0 + Gemini)</option>
+                  <option value="gemini">Google Gemini (Direct)</option>
+                  <option value="openai">OpenAI (ChatGPT)</option>
+                  <option value="claude">Anthropic Claude</option>
+                </select>
+
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Strict Uploaded-Only Mode</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStrictSourceOnly(!strictSourceOnly)}
+                    className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer flex items-center ${
+                      strictSourceOnly ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Chapter / Topic Title */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Chapter or Topic Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={chapterTitle}
+                  onChange={(e) => setChapterTitle(e.target.value)}
+                  placeholder="e.g. Chemical Reactions and Equations"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none"
+                />
+              </div>
+
+              {/* Format Selection (6 Options) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Notes Format</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {NOTE_FORMATS.map(fmt => {
+                    const isSelected = selectedFormat === fmt.id;
+                    return (
+                      <button
+                        key={fmt.id}
+                        type="button"
+                        onClick={() => setSelectedFormat(fmt.id)}
+                        className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-bold leading-tight">{fmt.label}</div>
+                        <div className={`text-[10px] line-clamp-1 mt-0.5 ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                          {fmt.desc}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Language Selection (English, Hindi, Hinglish) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Output Language</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {LANGUAGES.map(lang => {
+                    const isSelected = selectedLanguage === lang.id;
+                    return (
+                      <button
+                        key={lang.id}
+                        type="button"
+                        onClick={() => setSelectedLanguage(lang.id as any)}
+                        className={`p-2 rounded-xl border text-center transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        <div className="text-xs font-bold leading-tight">{lang.label}</div>
+                        <div className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                          {lang.sub}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Additional Custom Instructions (Optional) */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Custom Focus / Instructions (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="e.g. Emphasize numerical derivations and definition tables"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:border-blue-500 focus:bg-white outline-none"
+                />
+              </div>
+
+              {/* Primary Action Button */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateNotes}
+                  disabled={isProcessing}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Processing Uploaded Content...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span>Generate High-Yield Study Notes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="pt-1 text-center text-[10px] text-slate-400">
+                Automatically divides documents • Preserves LaTeX math &amp; tables • Full Traceability
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
       </div>
+
+      {/* File Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                <h3 className="text-xs font-bold text-slate-800 truncate">{previewFile.name}</h3>
+              </div>
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 text-xs text-slate-700">
+              {previewFile.previewUrl && (
+                <div className="rounded-2xl overflow-hidden border border-slate-200">
+                  <img src={previewFile.previewUrl} alt={previewFile.name} className="w-full object-contain max-h-72" />
+                </div>
+              )}
+              {previewFile.extractedText ? (
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                  {previewFile.extractedText}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">
+                  Document ready for AI multimodal analysis ({previewFile.sizeFormatted}).
+                </p>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setPreviewFile(null)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Drawer / Modal */}
+      {isHistoryOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-blue-600" />
+                <h3 className="text-sm font-bold text-slate-900">Notes Generation History</h3>
+              </div>
+              <button
+                onClick={() => setIsHistoryOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {recentNotes.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 space-y-2">
+                  <FileQuestion className="w-8 h-8 mx-auto opacity-50" />
+                  <p className="text-xs">No notes generated yet in this session.</p>
+                </div>
+              ) : (
+                recentNotes.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setIsHistoryOpen(false);
+                      setGeneratedNote({
+                        title: item.title,
+                        markdown: item.markdown,
+                        format: item.format,
+                        language: item.language,
+                        sourceContext: ''
+                      });
+                    }}
+                    className="p-3.5 rounded-2xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/30 transition flex items-center justify-between gap-3 cursor-pointer group"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="text-xs font-bold text-slate-900 truncate group-hover:text-blue-600">
+                        {item.title}
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                        <span>{item.format}</span>
+                        <span>•</span>
+                        <span>{item.language}</span>
+                        <span>•</span>
+                        <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-blue-600 group-hover:underline">
+                        Open Editor →
+                      </span>
+                      <button
+                        onClick={(e) => deleteRecentHistoryItem(item.id, e)}
+                        className="p-1 text-slate-300 hover:text-rose-600 transition"
+                        title="Delete from history"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setIsHistoryOpen(false)}
+                className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs text-slate-700 cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
